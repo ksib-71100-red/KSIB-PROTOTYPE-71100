@@ -1,15 +1,13 @@
 import requests
 import time
 import random
-import getpass
 
 print("=== KSIB PROTOTYPE 71100 ===")
 print("Mass TikTok Reporter\n")
 
-# Şifre
-sifre = getpass.getpass("Şifreyi gir: ")
+sifre = input("Şifreyi gir: ")
 if sifre != "71100admiral":
-    print("Yanlış şifre !?")
+    print("Yanlış şifre kanka!")
     exit()
 
 video_link = input("\nVideo linkini yapıştır: ").strip()
