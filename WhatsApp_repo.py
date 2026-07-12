@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-KSIB TOOLS - WhatsApp Mass Reporter
-TÜM ÜLKELER | ŞİFRE KORUMALI
+KSIB TOOLS - WhatsApp Mass Reporter v4.0
+KITA BAZLI ÜLKE SEÇİMİ | ŞİFRE KORUMALI
 """
 
 import requests
@@ -20,25 +20,101 @@ init(autoreset=True)
 
 KONTROL = "c4e5a7f8d9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
 
-# Ülke kodları
-ULKELER = {
-    "90": "TR", "1": "US", "44": "GB", "49": "DE", "33": "FR",
-    "39": "IT", "34": "ES", "31": "NL", "46": "SE", "47": "NO",
-    "45": "DK", "358": "FI", "48": "PL", "43": "AT", "41": "CH",
-    "32": "BE", "351": "PT", "30": "GR", "36": "HU", "40": "RO",
-    "359": "BG", "420": "CZ", "421": "SK", "386": "SI", "385": "HR",
-    "381": "RS", "387": "BA", "382": "ME", "389": "MK", "355": "AL",
-    "7": "RU", "380": "UA", "375": "BY", "373": "MD", "370": "LT",
-    "371": "LV", "372": "EE", "374": "AM", "994": "AZ", "995": "GE",
-    "90": "TR", "20": "EG", "966": "SA", "971": "AE", "974": "QA",
-    "973": "BH", "968": "OM", "965": "KW", "962": "JO", "961": "LB",
-    "963": "SY", "964": "IQ", "98": "IR", "92": "PK", "91": "IN",
-    "94": "LK", "880": "BD", "95": "MM", "66": "TH", "84": "VN",
-    "62": "ID", "60": "MY", "63": "PH", "65": "SG", "81": "JP",
-    "82": "KR", "86": "CN", "852": "HK", "886": "TW", "61": "AU",
-    "64": "NZ", "55": "BR", "54": "AR", "56": "CL", "57": "CO",
-    "58": "VE", "51": "PE", "52": "MX", "1": "CA", "234": "NG",
-    "254": "KE", "27": "ZA", "212": "MA", "216": "TN", "213": "DZ",
+# KITA BAZLI ÜLKELER
+KITALAR = {
+    "1": {
+        "isim": "🌍 AFRİKA",
+        "ulkeler": {
+            "20": "Mısır 🇪🇬", "211": "Güney Sudan 🇸🇸", "212": "Fas 🇲🇦",
+            "213": "Cezayir 🇩🇿", "216": "Tunus 🇹🇳", "218": "Libya 🇱🇾",
+            "220": "Gambiya 🇬🇲", "221": "Senegal 🇸🇳", "222": "Moritanya 🇲🇷",
+            "223": "Mali 🇲🇱", "224": "Gine 🇬🇳", "225": "Fildişi Sahili 🇨🇮",
+            "226": "Burkina Faso 🇧🇫", "227": "Nijer 🇳🇪", "228": "Togo 🇹🇬",
+            "229": "Benin 🇧🇯", "230": "Mauritius 🇲🇺", "231": "Liberya 🇱🇷",
+            "232": "Sierra Leone 🇸🇱", "233": "Gana 🇬🇭", "234": "Nijerya 🇳🇬",
+            "235": "Çad 🇹🇩", "236": "Orta Afrika 🇨🇫", "237": "Kamerun 🇨🇲",
+            "238": "Yeşil Burun 🇨🇻", "239": "Sao Tome 🇸🇹", "240": "Ekvator Ginesi 🇬🇶",
+            "241": "Gabon 🇬🇦", "242": "Kongo 🇨🇬", "243": "Dem. Kongo 🇨🇩",
+            "244": "Angola 🇦🇴", "245": "Gine-Bissau 🇬🇼", "247": "Ascension 🇦🇨",
+            "248": "Seyşeller 🇸🇨", "249": "Sudan 🇸🇩", "250": "Ruanda 🇷🇼",
+            "251": "Etiyopya 🇪🇹", "252": "Somali 🇸🇴", "253": "Cibuti 🇩🇯",
+            "254": "Kenya 🇰🇪", "255": "Tanzanya 🇹🇿", "256": "Uganda 🇺🇬",
+            "257": "Burundi 🇧🇮", "258": "Mozambik 🇲🇿", "260": "Zambiya 🇿🇲",
+            "261": "Madagaskar 🇲🇬", "262": "Reunion 🇷🇪", "263": "Zimbabve 🇿🇼",
+            "264": "Namibya 🇳🇦", "265": "Malavi 🇲🇼", "266": "Lesoto 🇱🇸",
+            "267": "Botsvana 🇧🇼", "268": "Esvatini 🇸🇿", "269": "Komorlar 🇰🇲",
+            "27": "Güney Afrika 🇿🇦", "290": "Saint Helena 🇸🇭", "291": "Eritre 🇪🇷",
+        }
+    },
+    "2": {
+        "isim": "🌍 AVRUPA",
+        "ulkeler": {
+            "30": "Yunanistan 🇬🇷", "31": "Hollanda 🇳🇱", "32": "Belçika 🇧🇪",
+            "33": "Fransa 🇫🇷", "34": "İspanya 🇪🇸", "350": "Cebelitarık 🇬🇮",
+            "351": "Portekiz 🇵🇹", "352": "Lüksemburg 🇱🇺", "353": "İrlanda 🇮🇪",
+            "354": "İzlanda 🇮🇸", "355": "Arnavutluk 🇦🇱", "356": "Malta 🇲🇹",
+            "357": "Kıbrıs 🇨🇾", "358": "Finlandiya 🇫🇮", "359": "Bulgaristan 🇧🇬",
+            "36": "Macaristan 🇭🇺", "370": "Litvanya 🇱🇹", "371": "Letonya 🇱🇻",
+            "372": "Estonya 🇪🇪", "373": "Moldova 🇲🇩", "374": "Ermenistan 🇦🇲",
+            "375": "Belarus 🇧🇾", "376": "Andorra 🇦🇩", "377": "Monako 🇲🇨",
+            "378": "San Marino 🇸🇲", "380": "Ukrayna 🇺🇦", "381": "Sırbistan 🇷🇸",
+            "382": "Karadağ 🇲🇪", "383": "Kosova 🇽🇰", "385": "Hırvatistan 🇭🇷",
+            "386": "Slovenya 🇸🇮", "387": "Bosna Hersek 🇧🇦", "389": "Kuzey Makedonya 🇲🇰",
+            "39": "İtalya 🇮🇹", "40": "Romanya 🇷🇴", "41": "İsviçre 🇨🇭",
+            "420": "Çekya 🇨🇿", "421": "Slovakya 🇸🇰", "423": "Lihtenştayn 🇱🇮",
+            "43": "Avusturya 🇦🇹", "44": "İngiltere 🇬🇧", "45": "Danimarka 🇩🇰",
+            "46": "İsveç 🇸🇪", "47": "Norveç 🇳🇴", "48": "Polonya 🇵🇱",
+            "49": "Almanya 🇩🇪",
+        }
+    },
+    "3": {
+        "isim": "🌏 ASYA & ORTA DOĞU",
+        "ulkeler": {
+            "1": "ABD/Kanada (NANP) 🇺🇸🇨🇦", "7": "Rusya/Kazakistan 🇷🇺🇰🇿",
+            "81": "Japonya 🇯🇵", "82": "Güney Kore 🇰🇷", "84": "Vietnam 🇻🇳",
+            "850": "Kuzey Kore 🇰🇵", "852": "Hong Kong 🇭🇰", "853": "Makao 🇲🇴",
+            "855": "Kamboçya 🇰🇭", "856": "Laos 🇱🇦", "86": "Çin 🇨🇳",
+            "880": "Bangladeş 🇧🇩", "886": "Tayvan 🇹🇼", "90": "Türkiye 🇹🇷",
+            "91": "Hindistan 🇮🇳", "92": "Pakistan 🇵🇰", "93": "Afganistan 🇦🇫",
+            "94": "Sri Lanka 🇱🇰", "95": "Myanmar 🇲🇲", "960": "Maldivler 🇲🇻",
+            "961": "Lübnan 🇱🇧", "962": "Ürdün 🇯🇴", "963": "Suriye 🇸🇾",
+            "964": "Irak 🇮🇶", "965": "Kuveyt 🇰🇼", "966": "Suudi Arabistan 🇸🇦",
+            "967": "Yemen 🇾🇪", "968": "Umman 🇴🇲", "970": "Filistin 🇵🇸",
+            "971": "BAE 🇦🇪", "972": "İsrail 🇮🇱", "973": "Bahreyn 🇧🇭",
+            "974": "Katar 🇶🇦", "975": "Butan 🇧🇹", "976": "Moğolistan 🇲🇳",
+            "977": "Nepal 🇳🇵", "98": "İran 🇮🇷", "992": "Tacikistan 🇹🇯",
+            "993": "Türkmenistan 🇹🇲", "994": "Azerbaycan 🇦🇿", "995": "Gürcistan 🇬🇪",
+            "996": "Kırgızistan 🇰🇬", "998": "Özbekistan 🇺🇿",
+        }
+    },
+    "4": {
+        "isim": "🌎 AMERİKA",
+        "ulkeler": {
+            "1": "ABD/Kanada/Karayipler 🇺🇸🇨🇦", "52": "Meksika 🇲🇽",
+            "53": "Küba 🇨🇺", "54": "Arjantin 🇦🇷", "55": "Brezilya 🇧🇷",
+            "56": "Şili 🇨🇱", "57": "Kolombiya 🇨🇴", "58": "Venezuela 🇻🇪",
+            "500": "Falkland Adaları 🇫🇰", "501": "Belize 🇧🇿", "502": "Guatemala 🇬🇹",
+            "503": "El Salvador 🇸🇻", "504": "Honduras 🇭🇳", "505": "Nikaragua 🇳🇮",
+            "506": "Kosta Rika 🇨🇷", "507": "Panama 🇵🇦", "508": "Saint Pierre 🇵🇲",
+            "509": "Haiti 🇭🇹", "51": "Peru 🇵🇪", "591": "Bolivya 🇧🇴",
+            "592": "Guyana 🇬🇾", "593": "Ekvador 🇪🇨", "594": "Fransız Guyanası 🇬🇫",
+            "595": "Paraguay 🇵🇾", "596": "Martinik 🇲🇶", "597": "Surinam 🇸🇷",
+            "598": "Uruguay 🇺🇾", "599": "Hollanda Antilleri 🇳🇱",
+        }
+    },
+    "5": {
+        "isim": "🌏 OKYANUSYA",
+        "ulkeler": {
+            "61": "Avustralya 🇦🇺", "64": "Yeni Zelanda 🇳🇿",
+            "672": "Antarktika 🇦🇶", "673": "Brunei 🇧🇳", "674": "Nauru 🇳🇷",
+            "675": "Papua Yeni Gine 🇵🇬", "676": "Tonga 🇹🇴", "677": "Solomon Adaları 🇸🇧",
+            "678": "Vanuatu 🇻🇺", "679": "Fiji 🇫🇯", "680": "Palau 🇵🇼",
+            "681": "Wallis Futuna 🇼🇫", "682": "Cook Adaları 🇨🇰", "683": "Niue 🇳🇺",
+            "685": "Samoa 🇼🇸", "686": "Kiribati 🇰🇮", "687": "Yeni Kaledonya 🇳🇨",
+            "688": "Tuvalu 🇹🇻", "689": "Fransız Polinezyası 🇵🇫", "690": "Tokelau 🇹🇰",
+            "691": "Mikronezya 🇫🇲", "692": "Marshall Adaları 🇲🇭",
+        }
+    }
 }
 
 def giris():
@@ -57,6 +133,72 @@ def giris():
             return True
         print(Fore.RED + f"❌ Hatalı! ({2-i} hakkın kaldı)\n")
     sys.exit(0)
+
+def ulke_sec():
+    """Kıta bazlı ülke seçimi"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print(Fore.CYAN + Style.BRIGHT + """
+    ╔══════════════════════════════════════╗
+    ║        🌍 KITA SEÇİMİ              ║
+    ╚══════════════════════════════════════╝
+    """ + Style.RESET_ALL)
+    
+    # Kıtaları listele
+    for kod, kita in KITALAR.items():
+        print(Fore.YELLOW + f"[{kod}] {kita['isim']} ({len(kita['ulkeler'])} ülke)")
+    
+    print(Fore.CYAN + "\n[0] ✨ Özel ülke kodu gir")
+    
+    kita_secim = input(Fore.GREEN + "\n🌍 Kıta seçin: ")
+    
+    if kita_secim == "0":
+        # Direkt ülke kodu
+        kod = input(Fore.GREEN + "🔢 Ülke kodu girin (+ olmadan): ")
+        return kod
+    
+    if kita_secim not in KITALAR:
+        print(Fore.RED + "❌ Geçersiz seçim!")
+        time.sleep(1)
+        return ulke_sec()
+    
+    # Seçilen kıtadaki ülkeleri listele
+    os.system('cls' if os.name == 'nt' else 'clear')
+    kita = KITALAR[kita_secim]
+    
+    print(Fore.CYAN + Style.BRIGHT + f"""
+    ╔══════════════════════════════════════╗
+    ║     {kita['isim']} ÜLKELERİ      ║
+    ╚══════════════════════════════════════╝
+    """ + Style.RESET_ALL)
+    
+    # Ülkeleri 3 sütun halinde listele
+    ulkeler = list(kita['ulkeler'].items())
+    
+    for i, (kod, isim) in enumerate(ulkeler, 1):
+        print(Fore.WHITE + f"[{i:3d}] {isim:<30s} (+{kod})")
+    
+    print(Fore.YELLOW + f"\n[0] 🔙 Ana menüye dön")
+    
+    try:
+        secim = int(input(Fore.GREEN + f"\n🌍 Ülke seçin (1-{len(ulkeler)}): "))
+        
+        if secim == 0:
+            return ulke_sec()
+        
+        if 1 <= secim <= len(ulkeler):
+            kod, isim = ulkeler[secim-1]
+            print(Fore.GREEN + f"\n✅ Seçilen: {isim} (+{kod})")
+            time.sleep(0.5)
+            return kod
+        else:
+            print(Fore.RED + "❌ Geçersiz seçim!")
+            time.sleep(1)
+            return ulke_sec()
+    
+    except ValueError:
+        print(Fore.RED + "❌ Sayı girin!")
+        time.sleep(1)
+        return ulke_sec()
 
 class WA:
     def __init__(self):
@@ -83,8 +225,8 @@ class WA:
         os.system('cls' if os.name == 'nt' else 'clear')
         print(Fore.GREEN + Style.BRIGHT + """
         ╔══════════════════════════════════════╗
-        ║  WHATSAPP MASS REPORTER v3.0       ║
-        ║  💬 Tüm Ülkeler | Grup | Business  ║
+        ║  WHATSAPP MASS REPORTER v4.0       ║
+        ║  💬 Kıta Bazlı | 200+ Ülke        ║
         ╚══════════════════════════════════════╝
         """ + Style.RESET_ALL)
     
@@ -93,42 +235,9 @@ class WA:
         s.headers.update({
             "User-Agent": self.ua.random,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": f"{self.ulke_kodu.lower()}-{self.ulke_kodu},en-US;q=0.9",
+            "Accept-Language": "en-US,en;q=0.9",
         })
         return s
-    
-    def fmt(self, p):
-        """Tüm ülke formatlarını destekle"""
-        p = ''.join(filter(str.isdigit, p))
-        
-        # +90 veya 90 ile başlıyorsa Türkiye
-        if p.startswith('90') and len(p) == 12:
-            return p
-        
-        # Başında 0 varsa kaldır
-        if p.startswith('0'):
-            p = p[1:]
-        
-        # Ülke kodunu tahmin et (uzunluğa göre)
-        if len(p) == 10:  # 5XXXXXXXXX -> Türkiye
-            p = '90' + p
-            self.ulke_kodu = "TR"
-        elif len(p) == 10 and p.startswith('1'):  # ABD
-            p = '1' + p
-            self.ulke_kodu = "US"
-        elif len(p) >= 11:
-            # İlk 1-3 haneyi ülke kodu olarak al
-            for uzunluk in [3, 2, 1]:
-                kod = p[:uzunluk]
-                if kod in ULKELER:
-                    self.ulke_kodu = ULKELER[kod]
-                    break
-        
-        # Eğer başında ülke kodu yoksa, + ekle
-        if not any(p.startswith(k) for k in ULKELER.keys()):
-            p = '90' + p  # Varsayılan Türkiye
-        
-        return p
     
     def rr(self):
         return random.choice(self.r)
@@ -143,12 +252,10 @@ class WA:
                 "Content-Type": "application/x-www-form-urlencoded",
             }
             d = {
-                "phone_number": p,
-                "violation": r,
+                "phone_number": p, "violation": r,
                 "description": f"Report for {r}",
                 "email": f"r{random.randint(1000,9999)}@gmail.com",
-                "language": self.ulke_kodu.lower(),
-                "country": self.ulke_kodu,
+                "language": "en", "country": self.ulke_kodu,
             }
             resp = s.post(u, data=d, headers=h, timeout=15)
             return resp.status_code in [200, 201, 202, 302]
@@ -164,13 +271,10 @@ class WA:
                 "Content-Type": "application/json",
             }
             d = {
-                "report_type": "user",
-                "reported_number": p,
-                "violation_type": r,
-                "message": f"Reporting user for {r}",
+                "report_type": "user", "reported_number": p,
+                "violation_type": r, "message": f"Reporting user for {r}",
                 "report_country": self.ulke_kodu,
                 "platform": random.choice(["android", "ios", "web"]),
-                "app_version": f"2.23.{random.randint(1,25)}.{random.randint(1,99)}",
             }
             resp = s.post(u, json=d, headers=h, timeout=15)
             return resp.status_code in [200, 201, 202]
@@ -186,10 +290,8 @@ class WA:
                 "Content-Type": "application/json",
             }
             d = {
-                "report_type": "group",
-                "group_invite_link": g,
-                "violation_type": r,
-                "message": f"Reporting group for {r}",
+                "report_type": "group", "group_invite_link": g,
+                "violation_type": r, "message": f"Reporting group for {r}",
                 "report_country": self.ulke_kodu,
                 "platform": random.choice(["android", "ios", "web"]),
             }
@@ -207,10 +309,8 @@ class WA:
                 "Content-Type": "application/json",
             }
             d = {
-                "report_type": "business",
-                "phone_number": p,
-                "violation_type": r,
-                "business_violation": "true",
+                "report_type": "business", "phone_number": p,
+                "violation_type": r, "business_violation": "true",
                 "description": f"Business violation: {r}",
                 "email": f"b{random.randint(1000,9999)}@gmail.com",
                 "report_country": self.ulke_kodu,
@@ -258,10 +358,9 @@ class WA:
     
     def baslat(self, t, tp, c=100, th=30):
         self.mx = c
-        if tp in ["1", "3", "4"]: t = self.fmt(t)
         
         print(Fore.CYAN + f"\n📱 Hedef: {t}")
-        print(Fore.CYAN + f"🌍 Ülke: {self.ulke_kodu}")
+        print(Fore.CYAN + f"🌍 Ülke Kodu: +{self.ulke_kodu}")
         print(Fore.CYAN + f"📊 Rapor: {c} | 🧵 Thread: {th}")
         print(Fore.RED + "\n💣 BAŞLATILIYOR...\n")
         
@@ -310,14 +409,18 @@ def ana():
         print(Fore.YELLOW + "\n🔗 Grup linki:")
         t = input(Fore.GREEN + "> ")
     else:
-        print(Fore.YELLOW + "\n📱 Telefon numarası:")
-        print(Fore.CYAN + "   Örnekler:")
-        print(Fore.CYAN + "   +90 5XXXXXXXXX (Türkiye)")
-        print(Fore.CYAN + "   +1 XXXXXXXXX (ABD/Kanada)")
-        print(Fore.CYAN + "   +44 XXXXXXXXX (İngiltere)")
-        print(Fore.CYAN + "   +49 XXXXXXXXX (Almanya)")
-        print(Fore.CYAN + "   5XXXXXXXXX (Türkiye otomatik)")
-        t = input(Fore.GREEN + "> ")
+        # ÜLKE SEÇİMİ
+        w.ulke_kodu = ulke_sec()
+        
+        print(Fore.YELLOW + f"\n📱 Telefon numarası (+{w.ulke_kodu} için):")
+        print(Fore.CYAN + f"   Sadece numarayı yaz, +{w.ulke_kodu} otomatik eklenecek")
+        numara = input(Fore.GREEN + "> ")
+        
+        # Numarayı birleştir
+        numara = ''.join(filter(str.isdigit, numara))
+        if numara.startswith('0'):
+            numara = numara[1:]
+        t = w.ulke_kodu + numara
     
     print(Fore.YELLOW + "\n📊 Rapor Sayısı:")
     print("1. 100 | 2. 500 | 3. 1000 | 4. 3000 | 5. 5000")
