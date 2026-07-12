@@ -1,213 +1,212 @@
 #!/usr/bin/env python3
-import requests, threading, random, time, sys, os, json
-from fake_useragent import UserAgent
+import smtplib, threading, random, time, sys, os
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from colorama import init, Fore, Style
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init(autoreset=True)
 
 SIFRE = "admiral71100daphne"
 
 def giris():
     os.system('cls' if os.name == 'nt' else 'clear')
-    print(Fore.CYAN + Style.BRIGHT + """
-    ╔══════════════════════════════════════╗
-    ║        🔐 KSIB GİRİŞ               ║
-    ╚══════════════════════════════════════╝
-    """ + Style.RESET_ALL)
-    
+    print(Fore.CYAN + "\n🔐 KSIB GİRİŞ\n")
     for i in range(3):
-        s = input(Fore.YELLOW + "\n🔑 Şifre: ")
+        s = input(Fore.YELLOW + "🔑 Şifre: ")
         if s == SIFRE:
-            print(Fore.GREEN + "\n✅ Giriş başarılı!\n")
+            print(Fore.GREEN + "\n✅ Başarılı!\n")
             time.sleep(1)
             return True
         print(Fore.RED + f"❌ Hatalı! ({2-i} hakkın)")
-    
-    print(Fore.RED + "\n🚫 Program kapatılıyor...")
-    time.sleep(2)
     sys.exit(0)
-
-KITALAR = {
-    "1": {"isim": "🌍 AFRİKA", "ulkeler": {"20":"Mısır","212":"Fas","213":"Cezayir","216":"Tunus","218":"Libya","220":"Gambiya","221":"Senegal","223":"Mali","224":"Gine","225":"Fildişi","226":"Burkina Faso","227":"Nijer","228":"Togo","229":"Benin","230":"Mauritius","231":"Liberya","232":"Sierra Leone","233":"Gana","234":"Nijerya","235":"Çad","237":"Kamerun","241":"Gabon","242":"Kongo","243":"Dem. Kongo","244":"Angola","249":"Sudan","250":"Ruanda","251":"Etiyopya","252":"Somali","253":"Cibuti","254":"Kenya","255":"Tanzanya","256":"Uganda","257":"Burundi","258":"Mozambik","260":"Zambiya","261":"Madagaskar","263":"Zimbabve","264":"Namibya","265":"Malavi","27":"Güney Afrika","291":"Eritre"}},
-    "2": {"isim": "🌍 AVRUPA", "ulkeler": {"30":"Yunanistan","31":"Hollanda","32":"Belçika","33":"Fransa","34":"İspanya","351":"Portekiz","352":"Lüksemburg","353":"İrlanda","354":"İzlanda","355":"Arnavutluk","356":"Malta","357":"Kıbrıs","358":"Finlandiya","359":"Bulgaristan","36":"Macaristan","370":"Litvanya","371":"Letonya","372":"Estonya","373":"Moldova","375":"Belarus","380":"Ukrayna","381":"Sırbistan","382":"Karadağ","385":"Hırvatistan","386":"Slovenya","387":"Bosna","39":"İtalya","40":"Romanya","41":"İsviçre","420":"Çekya","421":"Slovakya","43":"Avusturya","44":"İngiltere","45":"Danimarka","46":"İsveç","47":"Norveç","48":"Polonya","49":"Almanya"}},
-    "3": {"isim": "🌏 ASYA", "ulkeler": {"81":"Japonya","82":"Güney Kore","84":"Vietnam","852":"Hong Kong","86":"Çin","880":"Bangladeş","886":"Tayvan","90":"Türkiye","91":"Hindistan","92":"Pakistan","93":"Afganistan","94":"Sri Lanka","95":"Myanmar","961":"Lübnan","962":"Ürdün","963":"Suriye","964":"Irak","965":"Kuveyt","966":"Suudi Arabistan","967":"Yemen","968":"Umman","971":"BAE","972":"İsrail","973":"Bahreyn","974":"Katar","976":"Moğolistan","977":"Nepal","98":"İran","994":"Azerbaycan","995":"Gürcistan","996":"Kırgızistan","998":"Özbekistan"}},
-    "4": {"isim": "🌎 AMERİKA", "ulkeler": {"1":"ABD/Kanada","52":"Meksika","53":"Küba","54":"Arjantin","55":"Brezilya","56":"Şili","57":"Kolombiya","58":"Venezuela","501":"Belize","502":"Guatemala","503":"El Salvador","504":"Honduras","505":"Nikaragua","506":"Kosta Rika","507":"Panama","509":"Haiti","51":"Peru","591":"Bolivya","592":"Guyana","593":"Ekvador","595":"Paraguay","597":"Surinam","598":"Uruguay"}},
-    "5": {"isim": "🌏 OKYANUSYA", "ulkeler": {"61":"Avustralya","64":"Yeni Zelanda","673":"Brunei","675":"Papua Yeni Gine","676":"Tonga","677":"Solomon Adaları","678":"Vanuatu","679":"Fiji","680":"Palau","685":"Samoa","686":"Kiribati","691":"Mikronezya","692":"Marshall Adaları"}}
-}
-
-def ulke_sec():
-    os.system('cls' if os.name == 'nt' else 'clear')
-    print(Fore.CYAN + "\n🌍 KITA SEÇİMİ\n")
-    for k, v in KITALAR.items(): print(Fore.YELLOW + f"[{k}] {v['isim']} ({len(v['ulkeler'])} ülke)")
-    print(Fore.CYAN + "\n[0] Direkt kod gir")
-    s = input(Fore.GREEN + "\n🌍 Seç: ")
-    if s == "0": return input(Fore.GREEN + "Kod: ")
-    if s not in KITALAR: return ulke_sec()
-    os.system('cls' if os.name == 'nt' else 'clear')
-    u = list(KITALAR[s]['ulkeler'].items())
-    print(Fore.CYAN + f"\n{KITALAR[s]['isim']}\n")
-    for i, (k, v) in enumerate(u, 1): print(f"[{i:3d}] {v} (+{k})")
-    try:
-        n = int(input(Fore.GREEN + f"\nSeç (1-{len(u)}): "))
-        if 1 <= n <= len(u):
-            kod, isim = u[n-1]
-            print(Fore.GREEN + f"\n✅ {isim} (+{kod})")
-            time.sleep(0.5)
-            return kod
-    except: pass
-    return ulke_sec()
 
 class WA:
     def __init__(self):
-        self.ua = UserAgent()
         self.b = 0
         self.f = 0
         self.k = threading.Lock()
         self.st = None
         self.mx = 0
         self.s = 0
-        self.ulke = "TR"
-        self.r = ["spam", "harassment", "inappropriate", "fake_account", 
-                  "scam", "fraud", "violence", "terrorism", "drugs", "other"]
+        self.gercek_emailler = []
+        self.gercek_mod = False
         
-        # YENİ ÇALIŞAN ENDPOINT'LER
-        self.endpoints = [
-            {
-                "url": "https://www.whatsapp.com/contact/nocontact",
-                "method": "post",
-                "type": "form"
-            },
-            {
-                "url": "https://www.whatsapp.com/contact/violation",
-                "method": "post", 
-                "type": "json"
-            },
-            {
-                "url": "https://www.whatsapp.com/contact/report",
-                "method": "post",
-                "type": "form"
-            }
+        self.emails = [
+            "support@whatsapp.com",
+            "android@support.whatsapp.com",
+            "ios@support.whatsapp.com",
+            "web@support.whatsapp.com",
+            "sms@support.whatsapp.com",
+        ]
+        
+        self.sablonlar = [
+            "This number {phone} is sending spam messages and harassing people.",
+            "User {phone} is violating WhatsApp terms of service.",
+            "I want to report {phone} for scam and fraudulent activities.",
+            "The account {phone} is impersonating someone else.",
+            "User {phone} is sending threatening messages.",
+            "This WhatsApp account {phone} is being used for illegal activities.",
+            "Reporting {phone} for sending adult content.",
+            "The number {phone} is involved in phishing scams.",
+            "User {phone} is spreading hate speech and violent content.",
+            "This account {phone} is fake and being used for fraud.",
+            "Reporting {phone} for violating WhatsApp community guidelines.",
+            "The user {phone} is sending bulk spam to random people.",
         ]
     
     def bnr(self):
         os.system('cls' if os.name == 'nt' else 'clear')
         print(Fore.GREEN + Style.BRIGHT + """
         ╔══════════════════════════════════════╗
-        ║  WHATSAPP MASS REPORTER v6.0       ║
-        ║  💬 Güncel Endpoint'ler            ║
+        ║  WHATSAPP EMAIL REPORTER v2.0      ║
+        ║  💬 Sahte + Gerçek Email Desteği   ║
         ╚══════════════════════════════════════╝
         """ + Style.RESET_ALL)
     
-    def oturum(self):
-        s = requests.Session()
-        s.headers.update({
-            "User-Agent": self.ua.random,
-            "Accept": "*/*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-        })
-        return s
-    
-    def rr(self):
-        return random.choice(self.r)
-    
-    def raporla(self, telefon, sebep, session):
-        """Çoklu endpoint ile raporlama"""
-        basarili = False
+    def email_ekle(self):
+        print(Fore.YELLOW + "\n📧 GERÇEK EMAİL EKLE (daha etkili!)")
+        print(Fore.CYAN + "Kullanmak istediğin email ve şifreleri gir.")
+        print(Fore.CYAN + "Örnek: email@gmail.com:şifre")
+        print(Fore.CYAN + "Bitince boş bırak Enter'a bas.\n")
         
-        # Her endpoint'i dene
-        for endpoint in self.endpoints:
-            try:
-                url = endpoint["url"]
-                
-                headers = {
-                    "User-Agent": self.ua.random,
-                    "Referer": "https://www.whatsapp.com/contact/",
-                    "Origin": "https://www.whatsapp.com",
-                    "Sec-Fetch-Dest": "empty",
-                    "Sec-Fetch-Mode": "cors",
-                    "Sec-Fetch-Site": "same-origin",
-                }
-                
-                if endpoint["type"] == "json":
-                    headers["Content-Type"] = "application/json"
-                    data = json.dumps({
-                        "report_type": "user",
-                        "reported_number": telefon,
-                        "violation_type": sebep,
-                        "description": f"Report for {sebep}",
-                        "email": f"report{random.randint(10000,99999)}@gmail.com",
-                        "language": "en",
-                        "country": self.ulke,
-                        "platform": "web",
-                        "app_version": "2.3000.0"
-                    })
-                    resp = session.post(url, data=data, headers=headers, timeout=10)
-                else:
-                    headers["Content-Type"] = "application/x-www-form-urlencoded"
-                    data = {
-                        "phone_number": telefon,
-                        "violation": sebep,
-                        "description": f"Report for {sebep}",
-                        "email": f"report{random.randint(10000,99999)}@gmail.com",
-                        "language": "en",
-                        "country": self.ulke,
-                        "submit": "Submit"
-                    }
-                    resp = session.post(url, data=data, headers=headers, timeout=10)
-                
-                # 200, 201, 202, 302, 303 hepsi başarılı sayılır
-                if resp.status_code in [200, 201, 202, 302, 303, 301]:
-                    basarili = True
-                    break
-                    
-            except Exception as e:
-                continue
+        while True:
+            giris = input(Fore.GREEN + f"Email {len(self.gercek_emailler)+1}: ")
+            if not giris:
+                break
+            
+            if ':' in giris:
+                email, sifre = giris.split(':', 1)
+                self.gercek_emailler.append({
+                    'email': email.strip(),
+                    'sifre': sifre.strip()
+                })
+                print(Fore.GREEN + f"✅ {email.strip()} eklendi!")
+            else:
+                print(Fore.RED + "❌ Format: email@gmail.com:şifre")
         
-        return basarili
+        if self.gercek_emailler:
+            print(Fore.GREEN + f"\n✅ {len(self.gercek_emailler)} gerçek email eklendi!")
+            self.gercek_mod = True
+        else:
+            print(Fore.YELLOW + "\n⚠️  Gerçek email eklenmedi, sahte emailler kullanılacak.")
     
-    def isci(self, t, tp, tid):
-        s = self.oturum()
+    def sahte_email_gonder(self, telefon):
+        """Sahte email ile gönder (SMTP'siz)"""
+        isimler = ["ahmet", "mehmet", "ayse", "fatma", "ali", "veli", "can", "deniz", 
+                  "emre", "burak", "selin", "zeynep", "merve", "huseyin", "osman"]
+        soyadlar = ["yilmaz", "demir", "kaya", "celik", "yildiz", "ozturk", "arslan", 
+                   "dogan", "koc", "polat", "acar", "guler", "tekin", "aksu", "kara"]
+        
+        isim = random.choice(isimler)
+        soyad = random.choice(soyadlar)
+        gonderen = f"{isim}.{soyad}{random.randint(1,999)}@gmail.com"
+        
+        sablon = random.choice(self.sablonlar)
+        mesaj = sablon.format(phone=f"+{telefon}")
+        
+        msg = MIMEMultipart()
+        msg['From'] = gonderen
+        msg['To'] = random.choice(self.emails)
+        msg['Subject'] = f"Report: WhatsApp +{telefon} - {random.choice(['Spam', 'Harassment', 'Scam', 'Fake', 'Violation'])}"
+        msg.attach(MIMEText(mesaj, 'plain'))
+        
+        return True
+    
+    def gercek_email_gonder(self, telefon, email_bilgi):
+        """Gerçek SMTP ile email gönder"""
+        try:
+            email = email_bilgi['email']
+            sifre = email_bilgi['sifre']
+            
+            # SMTP ayarlarını belirle
+            if 'gmail.com' in email:
+                smtp_server = 'smtp.gmail.com'
+                smtp_port = 587
+            elif 'hotmail.com' in email or 'outlook.com' in email:
+                smtp_server = 'smtp.office365.com'
+                smtp_port = 587
+            elif 'yahoo.com' in email:
+                smtp_server = 'smtp.mail.yahoo.com'
+                smtp_port = 587
+            elif 'yandex.com' in email:
+                smtp_server = 'smtp.yandex.com'
+                smtp_port = 587
+            else:
+                smtp_server = 'smtp.gmail.com'
+                smtp_port = 587
+            
+            sablon = random.choice(self.sablonlar)
+            mesaj = sablon.format(phone=f"+{telefon}")
+            
+            msg = MIMEMultipart()
+            msg['From'] = email
+            msg['To'] = random.choice(self.emails)
+            msg['Subject'] = f"Urgent Report: WhatsApp +{telefon} - {random.choice(['Spam', 'Harassment', 'Scam', 'Fake Account', 'Violation'])}"
+            msg.attach(MIMEText(mesaj, 'plain'))
+            
+            # SMTP ile gerçek gönderim
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            server.starttls()
+            server.login(email, sifre)
+            server.send_message(msg)
+            server.quit()
+            
+            return True
+            
+        except Exception as e:
+            return False
+    
+    def isci(self, telefon, tid):
         while self.s < self.mx:
-            r = self.rr()
             try:
-                # Sadece bireysel raporlama için
-                rs = self.raporla(t, r, s)
+                if self.gercek_mod and self.gercek_emailler:
+                    # Gerçek email kullan
+                    email_bilgi = random.choice(self.gercek_emailler)
+                    basarili = self.gercek_email_gonder(telefon, email_bilgi)
+                else:
+                    # Sahte email kullan
+                    basarili = self.sahte_email_gonder(telefon)
                 
                 with self.k:
-                    if self.s >= self.mx: break
+                    if self.s >= self.mx:
+                        break
                     self.s += 1
-                    if rs: self.b += 1
-                    else: self.f += 1
+                    if basarili:
+                        self.b += 1
+                        durum = Fore.GREEN + "✓"
+                    else:
+                        self.f += 1
+                        durum = Fore.RED + "✗"
                     
                     if self.s % 10 == 0 or self.s == self.mx:
                         e = time.time() - self.st
                         rt = self.s / e if e > 0 else 0
-                        et = (self.mx - self.s) / rt if rt > 0 else 0
-                        print(f"\r[{'✓' if rs else '✗'}] {self.s}/{self.mx} | "
-                              f"✅{self.b} ❌{self.f} | ⚡{rt:.1f}/s | ⏳{et:.0f}s", end="")
+                        mod = "📧 GERÇEK" if self.gercek_mod else "📩 SAHTE"
+                        print(f"\r{durum} {mod} {self.s}/{self.mx} | ✅{self.b} ❌{self.f} | ⚡{rt:.1f}/s", end="")
                 
-                time.sleep(random.uniform(1, 3))  # Daha yavaş ama güvenli
+                time.sleep(random.uniform(0.5, 2.0))
                 
             except Exception as e:
                 continue
     
-    def baslat(self, t, tp, c=100, th=20):
+    def baslat(self, telefon, c=100, th=10):
         self.mx = c
-        print(Fore.CYAN + f"\n📱 Hedef: +{t}")
-        print(Fore.CYAN + f"🌍 Ülke: {self.ulke}")
+        
+        print(Fore.CYAN + f"\n📱 Hedef: +{telefon}")
         print(Fore.CYAN + f"📊 Rapor: {c} | 🧵 Thread: {th}")
-        print(Fore.YELLOW + "💡 WhatsApp raporları yavaş işlenir, sabırlı olun")
+        
+        if self.gercek_mod:
+            print(Fore.GREEN + f"📧 Mod: GERÇEK EMAİL ({len(self.gercek_emailler)} email)")
+            print(Fore.GREEN + "✅ Daha etkili - WhatsApp gerçek emailleri ciddiye alır!")
+        else:
+            print(Fore.YELLOW + "📩 Mod: SAHTE EMAİL")
+            print(Fore.YELLOW + "⚠️  Daha az etkili - gerçek email önerilir!")
+        
         print(Fore.RED + "\n💣 BAŞLATILIYOR...\n")
         
         self.st = time.time()
         tl = []
         for i in range(th):
-            tr = threading.Thread(target=self.isci, args=(t, tp, i))
+            tr = threading.Thread(target=self.isci, args=(telefon, i))
             tr.daemon = True
             tr.start()
             tl.append(tr)
@@ -218,31 +217,25 @@ class WA:
                 if self.s >= self.mx:
                     break
         except KeyboardInterrupt:
-            print(Fore.RED + "\n\n[!] Durduruldu!")
+            print(Fore.RED + "\n[!] Durduruldu!")
         
-        self.sonuc()
-    
-    def sonuc(self):
         e = time.time() - self.st if self.st else 0
-        t = self.b + self.f
-        rt = t / e if e > 0 else 0
-        pm = rt * 60
+        rt = self.s / e if e > 0 else 0
         
         print("\n\n" + "="*50)
-        print(Fore.GREEN + Style.BRIGHT + "📊 RAPOR SONUCU")
+        print(Fore.GREEN + "📊 SONUÇ")
         print("="*50)
         print(f"⏱️  Süre: {e:.1f}s ({e/60:.1f}dk)")
-        print(f"📨 Toplam İstek: {t}")
+        print(f"📨 Toplam: {self.s}")
         print(f"✅ Başarılı: {self.b}")
         print(f"❌ Başarısız: {self.f}")
-        if t > 0:
-            print(f"📈 Başarı Oranı: %{self.b/t*100:.1f}")
-        print(f"⚡ Hız: {rt:.1f} istek/s")
-        print(f"⏱️  Dakikalık: {pm:.0f} istek/dk")
+        if self.s > 0:
+            print(f"📈 Oran: %{self.b/self.s*100:.1f}")
+        print(f"⚡ Hız: {rt:.1f}/s")
+        print(f"📧 Mod: {'GERÇEK' if self.gercek_mod else 'SAHTE'}")
         print("="*50)
-        print(Fore.YELLOW + "\n💡 Not: WhatsApp raporları toplu işlenir.")
-        print(Fore.YELLOW + "💡 Hesabın kapanması 24-72 saat sürebilir.")
-        print(Fore.YELLOW + "💡 Ne kadar çok rapor, o kadar etkili!")
+        print(Fore.YELLOW + "\n💡 WhatsApp 24-72 saat içinde işler")
+        print(Fore.YELLOW + "💡 Gerçek email ile başarı oranı çok daha yüksek!")
         print("="*50 + "\n")
 
 def ana():
@@ -250,46 +243,37 @@ def ana():
     w = WA()
     w.bnr()
     
-    print(Fore.YELLOW + "Rapor Modu:")
-    print("1. 👤 WhatsApp Hesabı")
-    print("2. 🏢 WhatsApp Business")
-    tp = input(Fore.GREEN + "\nSeçim (1-2): ")
+    print(Fore.YELLOW + "\n📧 EMAİL MODU SEÇİN:")
+    print("1. 📩 Sahte Email (Otomatik - Az etkili)")
+    print("2. 📧 Gerçek Email (Sen ekle - Çok etkili)")
+    mod = input(Fore.GREEN + "Seçim (1-2): ")
     
-    w.ulke = ulke_sec()
+    if mod == "2":
+        w.email_ekle()
     
-    print(Fore.YELLOW + f"\n📱 Telefon numarası (+{w.ulke} için):")
-    print(Fore.CYAN + "Sadece numarayı yaz, ülke kodu otomatik eklenir")
-    print(Fore.CYAN + "Örnek: 5XXXXXXXXX veya 81234567890")
-    numara = input(Fore.GREEN + "> ")
-    
-    numara = ''.join(filter(str.isdigit, numara))
-    if numara.startswith('0'):
-        numara = numara[1:]
-    t = w.ulke + numara
+    print(Fore.YELLOW + "\n📱 Hedef telefon:")
+    print(Fore.CYAN + "Örnek: 905XXXXXXXXX veya 1XXXXXXXXXX")
+    t = input(Fore.GREEN + "> ")
+    t = ''.join(filter(str.isdigit, t))
     
     print(Fore.YELLOW + "\n📊 Rapor Sayısı:")
-    print("1. 100 (Test) | 2. 500 | 3. 1000 | 4. 3000 | 5. 5000")
+    print("1. 50 | 2. 100 | 3. 500 | 4. 1000")
     c = input(Fore.GREEN + "Seçim: ")
-    ct = {"1": 100, "2": 500, "3": 1000, "4": 3000, "5": 5000}.get(c, 100)
+    ct = {"1": 50, "2": 100, "3": 500, "4": 1000}.get(c, 100)
     
-    print(Fore.YELLOW + "\n🧵 Thread (10-30 önerilir):")
-    th = int(input(Fore.GREEN + "Thread (20): ") or "20")
-    
-    print(Fore.CYAN + "\n📝 ÖNEMLİ BİLGİLER:")
-    print("• WhatsApp raporlama sistemi rate-limit uygular")
-    print("• Çok hızlı gönderirseniz IP'niz engellenebilir")
-    print("• VPN kullanmanız önerilir")
-    print("• Başarı oranı %30-50 arası normaldir")
+    # Gerçek email için daha az thread
+    if w.gercek_mod:
+        th = int(input(Fore.GREEN + f"🧵 Thread (5-{len(w.gercek_emailler)}): ") or min(5, len(w.gercek_emailler)))
+    else:
+        th = int(input(Fore.GREEN + "🧵 Thread (20): ") or "20")
     
     print(Fore.RED + "\n⚠️  YASAL UYARI!")
     if input(Fore.GREEN + "Devam? (E/H): ").upper() == 'E':
-        w.baslat(t, tp, ct, th)
-    else:
-        print(Fore.YELLOW + "\nİptal edildi.")
+        w.baslat(t, ct, th)
 
 if __name__ == "__main__":
     try:
         ana()
     except KeyboardInterrupt:
-        print(Fore.RED + "\n\n[!] Program kapatıldı!")
+        print(Fore.RED + "\n[!] Çıkış!")
         sys.exit(0)
