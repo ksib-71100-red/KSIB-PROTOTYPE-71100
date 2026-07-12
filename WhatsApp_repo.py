@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 KSIB TOOLS - WhatsApp Mass Reporter
-TEK KOMUT | ŞİFRE KORUMALI
+TÜM ÜLKELER | ŞİFRE KORUMALI
 """
 
 import requests
@@ -19,6 +19,27 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init(autoreset=True)
 
 KONTROL = "c4e5a7f8d9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+
+# Ülke kodları
+ULKELER = {
+    "90": "TR", "1": "US", "44": "GB", "49": "DE", "33": "FR",
+    "39": "IT", "34": "ES", "31": "NL", "46": "SE", "47": "NO",
+    "45": "DK", "358": "FI", "48": "PL", "43": "AT", "41": "CH",
+    "32": "BE", "351": "PT", "30": "GR", "36": "HU", "40": "RO",
+    "359": "BG", "420": "CZ", "421": "SK", "386": "SI", "385": "HR",
+    "381": "RS", "387": "BA", "382": "ME", "389": "MK", "355": "AL",
+    "7": "RU", "380": "UA", "375": "BY", "373": "MD", "370": "LT",
+    "371": "LV", "372": "EE", "374": "AM", "994": "AZ", "995": "GE",
+    "90": "TR", "20": "EG", "966": "SA", "971": "AE", "974": "QA",
+    "973": "BH", "968": "OM", "965": "KW", "962": "JO", "961": "LB",
+    "963": "SY", "964": "IQ", "98": "IR", "92": "PK", "91": "IN",
+    "94": "LK", "880": "BD", "95": "MM", "66": "TH", "84": "VN",
+    "62": "ID", "60": "MY", "63": "PH", "65": "SG", "81": "JP",
+    "82": "KR", "86": "CN", "852": "HK", "886": "TW", "61": "AU",
+    "64": "NZ", "55": "BR", "54": "AR", "56": "CL", "57": "CO",
+    "58": "VE", "51": "PE", "52": "MX", "1": "CA", "234": "NG",
+    "254": "KE", "27": "ZA", "212": "MA", "216": "TN", "213": "DZ",
+}
 
 def giris():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -46,6 +67,7 @@ class WA:
         self.st = None
         self.mx = 0
         self.s = 0
+        self.ulke_kodu = "TR"
         
         self.r = [
             "spam", "spam_messages", "spam_commercial",
@@ -61,8 +83,8 @@ class WA:
         os.system('cls' if os.name == 'nt' else 'clear')
         print(Fore.GREEN + Style.BRIGHT + """
         ╔══════════════════════════════════════╗
-        ║  WHATSAPP MASS REPORTER v2.0       ║
-        ║  💬 Bireysel | Grup | Business     ║
+        ║  WHATSAPP MASS REPORTER v3.0       ║
+        ║  💬 Tüm Ülkeler | Grup | Business  ║
         ╚══════════════════════════════════════╝
         """ + Style.RESET_ALL)
     
@@ -71,14 +93,41 @@ class WA:
         s.headers.update({
             "User-Agent": self.ua.random,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
+            "Accept-Language": f"{self.ulke_kodu.lower()}-{self.ulke_kodu},en-US;q=0.9",
         })
         return s
     
     def fmt(self, p):
+        """Tüm ülke formatlarını destekle"""
         p = ''.join(filter(str.isdigit, p))
-        if p.startswith('0'): p = p[1:]
-        if not p.startswith('90'): p = '90' + p
+        
+        # +90 veya 90 ile başlıyorsa Türkiye
+        if p.startswith('90') and len(p) == 12:
+            return p
+        
+        # Başında 0 varsa kaldır
+        if p.startswith('0'):
+            p = p[1:]
+        
+        # Ülke kodunu tahmin et (uzunluğa göre)
+        if len(p) == 10:  # 5XXXXXXXXX -> Türkiye
+            p = '90' + p
+            self.ulke_kodu = "TR"
+        elif len(p) == 10 and p.startswith('1'):  # ABD
+            p = '1' + p
+            self.ulke_kodu = "US"
+        elif len(p) >= 11:
+            # İlk 1-3 haneyi ülke kodu olarak al
+            for uzunluk in [3, 2, 1]:
+                kod = p[:uzunluk]
+                if kod in ULKELER:
+                    self.ulke_kodu = ULKELER[kod]
+                    break
+        
+        # Eğer başında ülke kodu yoksa, + ekle
+        if not any(p.startswith(k) for k in ULKELER.keys()):
+            p = '90' + p  # Varsayılan Türkiye
+        
         return p
     
     def rr(self):
@@ -94,10 +143,12 @@ class WA:
                 "Content-Type": "application/x-www-form-urlencoded",
             }
             d = {
-                "phone_number": p, "violation": r,
+                "phone_number": p,
+                "violation": r,
                 "description": f"Report for {r}",
                 "email": f"r{random.randint(1000,9999)}@gmail.com",
-                "language": "en", "country": "TR",
+                "language": self.ulke_kodu.lower(),
+                "country": self.ulke_kodu,
             }
             resp = s.post(u, data=d, headers=h, timeout=15)
             return resp.status_code in [200, 201, 202, 302]
@@ -113,9 +164,11 @@ class WA:
                 "Content-Type": "application/json",
             }
             d = {
-                "report_type": "user", "reported_number": p,
-                "violation_type": r, "message": f"Reporting user for {r}",
-                "report_country": "TR",
+                "report_type": "user",
+                "reported_number": p,
+                "violation_type": r,
+                "message": f"Reporting user for {r}",
+                "report_country": self.ulke_kodu,
                 "platform": random.choice(["android", "ios", "web"]),
                 "app_version": f"2.23.{random.randint(1,25)}.{random.randint(1,99)}",
             }
@@ -133,9 +186,11 @@ class WA:
                 "Content-Type": "application/json",
             }
             d = {
-                "report_type": "group", "group_invite_link": g,
-                "violation_type": r, "message": f"Reporting group for {r}",
-                "report_country": "TR",
+                "report_type": "group",
+                "group_invite_link": g,
+                "violation_type": r,
+                "message": f"Reporting group for {r}",
+                "report_country": self.ulke_kodu,
                 "platform": random.choice(["android", "ios", "web"]),
             }
             resp = s.post(u, json=d, headers=h, timeout=15)
@@ -152,11 +207,13 @@ class WA:
                 "Content-Type": "application/json",
             }
             d = {
-                "report_type": "business", "phone_number": p,
-                "violation_type": r, "business_violation": "true",
+                "report_type": "business",
+                "phone_number": p,
+                "violation_type": r,
+                "business_violation": "true",
                 "description": f"Business violation: {r}",
                 "email": f"b{random.randint(1000,9999)}@gmail.com",
-                "report_country": "TR",
+                "report_country": self.ulke_kodu,
             }
             resp = s.post(u, json=d, headers=h, timeout=15)
             return resp.status_code in [200, 201, 202]
@@ -204,6 +261,7 @@ class WA:
         if tp in ["1", "3", "4"]: t = self.fmt(t)
         
         print(Fore.CYAN + f"\n📱 Hedef: {t}")
+        print(Fore.CYAN + f"🌍 Ülke: {self.ulke_kodu}")
         print(Fore.CYAN + f"📊 Rapor: {c} | 🧵 Thread: {th}")
         print(Fore.RED + "\n💣 BAŞLATILIYOR...\n")
         
@@ -252,7 +310,13 @@ def ana():
         print(Fore.YELLOW + "\n🔗 Grup linki:")
         t = input(Fore.GREEN + "> ")
     else:
-        print(Fore.YELLOW + "\n📱 Telefon (5XXXXXXXXX):")
+        print(Fore.YELLOW + "\n📱 Telefon numarası:")
+        print(Fore.CYAN + "   Örnekler:")
+        print(Fore.CYAN + "   +90 5XXXXXXXXX (Türkiye)")
+        print(Fore.CYAN + "   +1 XXXXXXXXX (ABD/Kanada)")
+        print(Fore.CYAN + "   +44 XXXXXXXXX (İngiltere)")
+        print(Fore.CYAN + "   +49 XXXXXXXXX (Almanya)")
+        print(Fore.CYAN + "   5XXXXXXXXX (Türkiye otomatik)")
         t = input(Fore.GREEN + "> ")
     
     print(Fore.YELLOW + "\n📊 Rapor Sayısı:")
