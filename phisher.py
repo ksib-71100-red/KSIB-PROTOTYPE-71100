@@ -271,14 +271,31 @@ def check_wget():
         return False
 
 def check_cloudflared():
-    # Önce /tmp'de kontrol et (indirilmiş olabilir)
+    # Önce /tmp'de kontrol et
     if os.path.exists("/tmp/cloudflared"):
-        return True
-    try:
-        subprocess.run(["cloudflared", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
-    except:
-        return False
+        try:
+            test = subprocess.run(["/tmp/cloudflared", "--version"], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            if test.returncode == 0:
+                return True
+            else:
+                os.remove("/tmp/cloudflared")
+        except:
+            pass
+    
+    # Sonra /usr/local/bin'de kontrol et
+    if os.path.exists("/usr/local/bin/cloudflared"):
+        try:
+            test = subprocess.run(["/usr/local/bin/cloudflared", "--version"], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            if test.returncode == 0:
+                return True
+            else:
+                os.remove("/usr/local/bin/cloudflared")
+        except:
+            pass
+    
+    return False
 
 def install_cloudflared():
     print("\n   📥 cloudflared indiriliyor...")
@@ -307,7 +324,8 @@ def install_cloudflared():
         
         # test
         print("   🧪 Test ediliyor...")
-        result = subprocess.run(["/tmp/cloudflared", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(["/tmp/cloudflared", "--version"], 
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
         if result.returncode == 0:
             print("   ✅ cloudflared başariyla kuruldu! 🎉")
             return True
@@ -323,23 +341,54 @@ def start_cloudflare_tunnel(port):
     print("🌐 CLOUDFLARE TUNNEL BASLATILIYOR")
     print("="*50)
     
-    # cloudflared yolunu belirle
+    # === 1. ÖNCE /tmp/cloudflared KONTROL ET ===
     cf_path = None
-    if os.path.exists("/usr/local/bin/cloudflared"):
-        cf_path = "/usr/local/bin/cloudflared"
-    elif os.path.exists("/tmp/cloudflared"):
-        cf_path = "/tmp/cloudflared"
+    if os.path.exists("/tmp/cloudflared"):
+        try:
+            test = subprocess.run(["/tmp/cloudflared", "--version"], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            if test.returncode == 0:
+                cf_path = "/tmp/cloudflared"
+                print("   ✅ cloudflared yolu: /tmp/cloudflared")
+            else:
+                print("   ⚠️ /tmp/cloudflared bozuk, siliniyor...")
+                os.remove("/tmp/cloudflared")
+        except:
+            print("   ⚠️ /tmp/cloudflared bozuk, siliniyor...")
+            try:
+                os.remove("/tmp/cloudflared")
+            except:
+                pass
     
+    # === 2. /usr/local/bin/cloudflared KONTROL ET ===
+    if not cf_path and os.path.exists("/usr/local/bin/cloudflared"):
+        try:
+            test = subprocess.run(["/usr/local/bin/cloudflared", "--version"], 
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            if test.returncode == 0:
+                cf_path = "/usr/local/bin/cloudflared"
+                print("   ✅ cloudflared yolu: /usr/local/bin/cloudflared")
+            else:
+                print("   ⚠️ /usr/local/bin/cloudflared bozuk, siliniyor...")
+                os.remove("/usr/local/bin/cloudflared")
+        except:
+            print("   ⚠️ /usr/local/bin/cloudflared calismiyor, siliniyor...")
+            try:
+                os.remove("/usr/local/bin/cloudflared")
+            except:
+                pass
+    
+    # === 3. HİÇBİR YERDE YOKSA KUR ===
     if not cf_path:
-        print("\n   ⚠️ cloudflared bulunamadi, otomatik kurulum başlatiliyor...")
+        print("\n   ⚠️ cloudflared bulunamadi veya bozuk, kuruluyor...")
         if not install_cloudflared():
             print("\n❌ Kurulum başarisiz!")
             print("   💡 Çözüm: apk add wget")
             return None
         cf_path = "/tmp/cloudflared"
+        print(f"   ✅ cloudflared kuruldu: {cf_path}")
     
-    print(f"   ✅ cloudflared yolu: {cf_path}")
-    
+    # === 4. TÜNELİ BAŞLAT ===
     try:
         print("\n   🔗 Tünel başlatiliyor...")
         print("   ⏳ Cloudflare'a bağlaniliyor (10-15 saniye)...")
@@ -355,13 +404,11 @@ def start_cloudflare_tunnel(port):
             time.sleep(1)
             output = proc.stderr.readline()
             if output:
-                # Link bulma
                 if "trycloudflare.com" in output:
                     match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', output)
                     if match:
                         print(f"   ✅ Link yakalandi! ({i+1}s)")
                         return match.group(0)
-                # Hata yakalama
                 if "ERR" in output or "error" in output.lower():
                     if "certificate" in output.lower():
                         print("   ⚠️ Sertifika hatasi, tekrar deneniyor...")
@@ -369,7 +416,6 @@ def start_cloudflare_tunnel(port):
                         print("   ⚠️ Bağlantı zaman aşimi, tekrar deneniyor...")
                     else:
                         print(f"   ℹ️ {output.strip()[:80]}")
-                # Başarılı bağlantı mesajları
                 if "Connected" in output or "Connection" in output:
                     print(f"   ✅ {output.strip()}")
         
