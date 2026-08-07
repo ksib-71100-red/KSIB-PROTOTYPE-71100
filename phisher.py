@@ -270,33 +270,6 @@ def check_wget():
     except:
         return False
 
-def check_cloudflared():
-    # Önce /tmp'de kontrol et
-    if os.path.exists("/tmp/cloudflared"):
-        try:
-            test = subprocess.run(["/tmp/cloudflared", "--version"], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            if test.returncode == 0:
-                return True
-            else:
-                os.remove("/tmp/cloudflared")
-        except:
-            pass
-    
-    # Sonra /usr/local/bin'de kontrol et
-    if os.path.exists("/usr/local/bin/cloudflared"):
-        try:
-            test = subprocess.run(["/usr/local/bin/cloudflared", "--version"], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            if test.returncode == 0:
-                return True
-            else:
-                os.remove("/usr/local/bin/cloudflared")
-        except:
-            pass
-    
-    return False
-
 def install_cloudflared():
     print("\n   📥 cloudflared indiriliyor...")
     print("   ⏳ Bu islem 10-15 saniye sürebilir...")
@@ -306,32 +279,22 @@ def install_cloudflared():
             print("   ❌ wget gerekli! iSH: apk add wget")
             return False
         
-        # iSH x86 için linux-386 kullan
         print("   ⬇️  Dosya indiriliyor...")
         os.system("wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-386 -O /tmp/cloudflared 2>/dev/null")
         
         if not os.path.exists("/tmp/cloudflared") or os.path.getsize("/tmp/cloudflared") < 1000000:
-            print("   ❌ İndirme başarısız! İnternet bağlantısını kontrol et.")
+            print("   ❌ İndirme başarısız!")
             return False
         
-        # dosya boyutu
         size = os.path.getsize("/tmp/cloudflared") / (1024 * 1024)
         print(f"   📦 Dosya boyutu: {size:.1f} MB")
         
-        # çalıştırma izni
         print("   🔧 İzinler ayarlaniyor...")
         os.system("chmod +x /tmp/cloudflared")
         
-        # test
-        print("   🧪 Test ediliyor...")
-        result = subprocess.run(["/tmp/cloudflared", "--version"], 
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
-        if result.returncode == 0:
-            print("   ✅ cloudflared başariyla kuruldu! 🎉")
-            return True
-        else:
-            print("   ❌ Kurulum doğrulamasi başarisiz!")
-            return False
+        print("   ✅ cloudflared hazir!")
+        return True
+        
     except Exception as e:
         print(f"   ❌ Hata: {e}")
         return False
@@ -341,57 +304,26 @@ def start_cloudflare_tunnel(port):
     print("🌐 CLOUDFLARE TUNNEL BASLATILIYOR")
     print("="*50)
     
-    # === 1. ÖNCE /tmp/cloudflared KONTROL ET ===
     cf_path = None
     if os.path.exists("/tmp/cloudflared"):
-        try:
-            test = subprocess.run(["/tmp/cloudflared", "--version"], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            if test.returncode == 0:
-                cf_path = "/tmp/cloudflared"
-                print("   ✅ cloudflared yolu: /tmp/cloudflared")
-            else:
-                print("   ⚠️ /tmp/cloudflared bozuk, siliniyor...")
-                os.remove("/tmp/cloudflared")
-        except:
-            print("   ⚠️ /tmp/cloudflared bozuk, siliniyor...")
-            try:
-                os.remove("/tmp/cloudflared")
-            except:
-                pass
+        cf_path = "/tmp/cloudflared"
+        print("   ✅ cloudflared yolu: /tmp/cloudflared")
     
-    # === 2. /usr/local/bin/cloudflared KONTROL ET ===
     if not cf_path and os.path.exists("/usr/local/bin/cloudflared"):
-        try:
-            test = subprocess.run(["/usr/local/bin/cloudflared", "--version"], 
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            if test.returncode == 0:
-                cf_path = "/usr/local/bin/cloudflared"
-                print("   ✅ cloudflared yolu: /usr/local/bin/cloudflared")
-            else:
-                print("   ⚠️ /usr/local/bin/cloudflared bozuk, siliniyor...")
-                os.remove("/usr/local/bin/cloudflared")
-        except:
-            print("   ⚠️ /usr/local/bin/cloudflared calismiyor, siliniyor...")
-            try:
-                os.remove("/usr/local/bin/cloudflared")
-            except:
-                pass
+        cf_path = "/usr/local/bin/cloudflared"
+        print("   ✅ cloudflared yolu: /usr/local/bin/cloudflared")
     
-    # === 3. HİÇBİR YERDE YOKSA KUR ===
     if not cf_path:
-        print("\n   ⚠️ cloudflared bulunamadi veya bozuk, kuruluyor...")
+        print("\n   ⚠️ cloudflared bulunamadi, kuruluyor...")
         if not install_cloudflared():
             print("\n❌ Kurulum başarisiz!")
-            print("   💡 Çözüm: apk add wget")
             return None
         cf_path = "/tmp/cloudflared"
         print(f"   ✅ cloudflared kuruldu: {cf_path}")
     
-    # === 4. TÜNELİ BAŞLAT ===
     try:
         print("\n   🔗 Tünel başlatiliyor...")
-        print("   ⏳ Cloudflare'a bağlaniliyor (10-15 saniye)...")
+        print("   ⏳ Cloudflare'a bağlaniliyor (15-20 saniye)...")
         
         proc = subprocess.Popen(
             [cf_path, "tunnel", "--url", f"http://localhost:{port}"],
@@ -400,7 +332,7 @@ def start_cloudflare_tunnel(port):
             text=True
         )
         
-        for i in range(30):
+        for i in range(40):
             time.sleep(1)
             output = proc.stderr.readline()
             if output:
@@ -419,9 +351,7 @@ def start_cloudflare_tunnel(port):
                 if "Connected" in output or "Connection" in output:
                     print(f"   ✅ {output.strip()}")
         
-        print("\n   ❌ Tunnel başlatilamadi! Cloudflare'a bağlanilamiyor.")
-        print("   💡 İnternet bağlantını kontrol et.")
-        print("   💡 VPN açik olabilir, kapatmayi dene.")
+        print("\n   ❌ Tunnel başlatilamadi!")
         return None
     except Exception as e:
         print(f"\n   ❌ Hata: {e}")
