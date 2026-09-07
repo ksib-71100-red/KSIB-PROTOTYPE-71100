@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # ============================================
-# SENTRY SCANNER - TÜM ÖZELLİKLER
-# time out komutu yok, sadece curl --connect-timeout
-# iSH uyumlu, takılma yok
+# SENTRY SCANNER - DNS VALIDATION DÜZELTİLDİ
+# dig/host arka planda çalışır, takılma yok
 # ============================================
 
 RED='\033[0;31m'
@@ -21,7 +20,7 @@ TIMEOUT=2
 mkdir -p "$OUTPUT_DIR" "$OUTPUT_DIR/data"
 
 echo -e "${BLUE}=====================================${NC}"
-echo -e "${BLUE}  SENTRY SCANNER - TÜM ÖZELLİKLER${NC}"
+echo -e "${BLUE}  SENTRY SCANNER${NC}"
 echo -e "${BLUE}=====================================${NC}"
 echo "Started: $(date)"
 echo ""
@@ -44,7 +43,7 @@ grep -iE "Server|X-Powered-By|X-Frame-Options|Strict-Transport-Security|X-Conten
 echo ""
 
 # ============================================
-# 3. SSL DETAYLARI (timeout yok, curl ile)
+# 3. SSL DETAYLARI
 # ============================================
 echo -e "${YELLOW}[3] SSL Details${NC}"
 if command -v openssl &> /dev/null; then
@@ -85,7 +84,6 @@ if [ -f "$OUTPUT_DIR/cookies.txt" ]; then
     grep -qi "HttpOnly" "$OUTPUT_DIR/cookies.txt" && echo -e "${GREEN}[+] HttpOnly: YES${NC}" || echo -e "${RED}[-] HttpOnly: NO${NC}"
     grep -qi "Secure" "$OUTPUT_DIR/cookies.txt" && echo -e "${GREEN}[+] Secure: YES${NC}" || echo -e "${RED}[-] Secure: NO${NC}"
     grep -qi "SameSite" "$OUTPUT_DIR/cookies.txt" && echo -e "${GREEN}[+] SameSite: YES${NC}" || echo -e "${RED}[-] SameSite: NO${NC}"
-    grep -i "cookie" "$OUTPUT_DIR/cookies.txt" >> "$OUTPUT_DIR/data/cookie_security.txt"
 fi
 echo ""
 
@@ -117,25 +115,45 @@ done
 echo ""
 
 # ============================================
-# 8. DNS VALIDATION
+# 8. DNS VALIDATION (DÜZELTİLDİ - ARKA PLANDA)
 # ============================================
 echo -e "${YELLOW}[8] DNS Validation${NC}"
+
 if command -v dig &> /dev/null; then
+    echo -n "Checking DNS records... "
+    # Tüm subdomain'leri tek seferde kontrol et (arka planda)
     for s in "${subs[@]}"; do
-        ip=$(dig "$s.madout.games" A +short 2>/dev/null | head -1)
-        if [ -n "$ip" ]; then
-            echo -e "${GREEN}[+] $s.madout.games -> $ip${NC}"
-            echo "$s.madout.games -> $ip" >> "$OUTPUT_DIR/data/dns_validated.txt"
-        fi
+        (
+            ip=$(dig "$s.madout.games" A +short 2>/dev/null | head -1)
+            if [ -n "$ip" ]; then
+                echo "$s.madout.games -> $ip" >> "$OUTPUT_DIR/data/dns_validated.txt"
+            fi
+        ) &
     done
+    wait
+    if [ -s "$OUTPUT_DIR/data/dns_validated.txt" ]; then
+        echo -e "${GREEN}OK ($(cat "$OUTPUT_DIR/data/dns_validated.txt" | wc -l) found)${NC}"
+        cat "$OUTPUT_DIR/data/dns_validated.txt"
+    else
+        echo -e "${RED}None found${NC}"
+    fi
 elif command -v host &> /dev/null; then
+    echo -n "Checking DNS records with host... "
     for s in "${subs[@]}"; do
-        ip=$(host "$s.madout.games" 2>/dev/null | grep "has address" | head -1 | awk '{print $NF}')
-        if [ -n "$ip" ]; then
-            echo -e "${GREEN}[+] $s.madout.games -> $ip${NC}"
-            echo "$s.madout.games -> $ip" >> "$OUTPUT_DIR/data/dns_validated.txt"
-        fi
+        (
+            ip=$(host "$s.madout.games" 2>/dev/null | grep "has address" | head -1 | awk '{print $NF}')
+            if [ -n "$ip" ]; then
+                echo "$s.madout.games -> $ip" >> "$OUTPUT_DIR/data/dns_validated.txt"
+            fi
+        ) &
     done
+    wait
+    if [ -s "$OUTPUT_DIR/data/dns_validated.txt" ]; then
+        echo -e "${GREEN}OK ($(cat "$OUTPUT_DIR/data/dns_validated.txt" | wc -l) found)${NC}"
+        cat "$OUTPUT_DIR/data/dns_validated.txt"
+    else
+        echo -e "${RED}None found${NC}"
+    fi
 else
     echo -e "${YELLOW}SKIP (dig/host not found)${NC}"
 fi
@@ -183,35 +201,24 @@ for p in "http://169.254.169.254/latest/meta-data/" "http://169.254.169.254/late
     if [ "$r" == "200" ] || [ "$r" == "401" ]; then
         echo -e "${GREEN}[+] $p ($r)${NC}"
         echo "$p ($r)" >> "$OUTPUT_DIR/data/aws_metadata.txt"
-        curl -k -s --connect-timeout $TIMEOUT "$p" > "$OUTPUT_DIR/data/aws_metadata_$(echo $p | tr '/' '_' | cut -c1-30).html" 2>/dev/null
     fi
 done
 echo ""
 
 # ============================================
-# 13. WAYBACK MACHINE (timeout yok, curl ile)
+# 13. WAYBACK MACHINE
 # ============================================
 echo -e "${YELLOW}[13] Wayback Machine${NC}"
 curl -k -s --connect-timeout $TIMEOUT "https://archive.org/wayback/available?url=sentry.madout.games" > "$OUTPUT_DIR/data/wayback.json" 2>/dev/null
-if [ -s "$OUTPUT_DIR/data/wayback.json" ]; then
-    echo -e "${GREEN}[+] Wayback data saved${NC}"
-    grep -oE '"timestamp":"[^"]*"' "$OUTPUT_DIR/data/wayback.json" 2>/dev/null | head -3
-else
-    echo -e "${RED}[-] Wayback data not available${NC}"
-fi
+[ -s "$OUTPUT_DIR/data/wayback.json" ] && echo -e "${GREEN}[+] Wayback data saved${NC}" || echo -e "${RED}[-] Wayback data not available${NC}"
 echo ""
 
 # ============================================
-# 14. GITHUB SEARCH (timeout yok, curl ile)
+# 14. GITHUB SEARCH
 # ============================================
 echo -e "${YELLOW}[14] GitHub Search${NC}"
 curl -k -s --connect-timeout $TIMEOUT "https://api.github.com/search/code?q=sentry.madout.games" > "$OUTPUT_DIR/data/github_raw.json" 2>/dev/null
-if [ -s "$OUTPUT_DIR/data/github_raw.json" ]; then
-    echo -e "${GREEN}[+] GitHub search saved${NC}"
-    grep -oE '"repository":{"full_name":"[^"]*"' "$OUTPUT_DIR/data/github_raw.json" 2>/dev/null | head -3
-else
-    echo -e "${RED}[-] GitHub data not available${NC}"
-fi
+[ -s "$OUTPUT_DIR/data/github_raw.json" ] && echo -e "${GREEN}[+] GitHub search saved${NC}" || echo -e "${RED}[-] GitHub data not available${NC}"
 echo ""
 
 # ============================================
