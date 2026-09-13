@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ProMax Scanner v7.0 ULTRA+
-Kurulum (iSH):
+m
     apk update && apk add python3 py3-pip ca-certificates
     update-ca-certificates
     pip3 install requests
